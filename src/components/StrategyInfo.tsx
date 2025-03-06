@@ -12,12 +12,12 @@ interface StrategyInfoProps {
 const StrategyInfo = ({ selectedStrategy, results, params }: StrategyInfoProps) => {
   if (!results) return null;
 
-  const formatNumber = (num: number) => {
-    return num.toFixed(4);
+  const formatNumber = (num: number | undefined) => {
+    return num !== undefined ? num.toFixed(4) : "N/A";
   };
 
-  const formatPercentage = (num: number) => {
-    return (num * 100).toFixed(2) + "%";
+  const formatPercentage = (num: number | undefined) => {
+    return num !== undefined ? (num * 100).toFixed(2) + "%" : "N/A";
   };
 
   const renderStrategyDetails = () => {
