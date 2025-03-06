@@ -94,6 +94,12 @@ export const STRATEGIES = {
         description: "Combine un Call KO et un Put KI pour profiter d'une baisse jusqu'à une barrière",
         needsStrikes: true,
         needsBarrier: true
+    },
+    "custom": {
+        name: "Stratégie personnalisée",
+        description: "Composez votre propre stratégie en ajoutant des options",
+        needsStrikes: false,
+        isCustom: true
     }
 };
 
@@ -105,4 +111,38 @@ export const FOREX_PAIR_CATEGORIES = {
         !["EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF", "AUD/USD", "USD/CAD", "NZD/USD", 
         "EUR/GBP", "EUR/JPY", "GBP/JPY", "EUR/CHF", "EUR/AUD", "GBP/CHF"].includes(pair)
     )
+};
+
+// Types d'options pour la stratégie personnalisée
+export const OPTION_TYPES = {
+    "call": "Call Vanille",
+    "put": "Put Vanille",
+    "callKO": "Call Knock-Out",
+    "callRKO": "Call Reverse Knock-Out",
+    "callDKO": "Call Double Knock-Out",
+    "putKO": "Put Knock-Out",
+    "putRKO": "Put Reverse Knock-Out",
+    "putDKO": "Put Double Knock-Out",
+    "callKI": "Call Knock-In",
+    "callRKI": "Call Reverse Knock-In",
+    "callDKI": "Call Double Knock-In",
+    "putKI": "Put Knock-In",
+    "putRKI": "Put Reverse Knock-In",
+    "putDKI": "Put Double Knock-In"
+};
+
+// Types de strike pour la stratégie personnalisée
+export const STRIKE_TYPES = [
+    { value: "percentage", label: "Pourcentage du spot" },
+    { value: "absolute", label: "Valeur absolue" }
+];
+
+// Types de barrière pour les options avec barrière
+export const BARRIER_TYPES = {
+    "KO": "Knock-Out (désactivante)",
+    "RKO": "Reverse Knock-Out (désactivante inverse)",
+    "DKO": "Double Knock-Out (double barrière)",
+    "KI": "Knock-In (activante)",
+    "RKI": "Reverse Knock-In (activante inverse)",
+    "DKI": "Double Knock-In (double barrière)"
 };

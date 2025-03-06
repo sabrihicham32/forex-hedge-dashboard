@@ -1,7 +1,7 @@
 
 import React from "react";
 import { HoverCard, Heading, ValueDisplay } from "@/components/ui/layout";
-import { STRATEGIES } from "@/utils/forexData";
+import { STRATEGIES, OPTION_TYPES } from "@/utils/forexData";
 
 interface StrategyInfoProps {
   selectedStrategy: string;
@@ -13,14 +13,115 @@ const StrategyInfo = ({ selectedStrategy, results, params }: StrategyInfoProps) 
   if (!results) return null;
 
   const formatNumber = (num: number | undefined) => {
-    return num !== undefined ? num.toFixed(4) : "N/A";
+    if (num === undefined || num === null || isNaN(num)) return "N/A";
+    return num.toFixed(4);
   };
 
   const formatPercentage = (num: number | undefined) => {
-    return num !== undefined ? (num * 100).toFixed(2) + "%" : "N/A";
+    if (num === undefined || num === null || isNaN(num)) return "N/A";
+    return (num * 100).toFixed(2) + "%";
+  };
+
+  const renderCustomStrategyDetails = () => {
+    if (!results.options || results.options.length === 0) {
+      return (
+        <div className="text-muted-foreground">
+          Aucune option ajoutée à la stratégie personnalisée.
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+          <ValueDisplay
+            label="Prime totale"
+            value={formatNumber(results.totalPremium)}
+            suffix="% of notional"
+            highlight
+          />
+          <ValueDisplay
+            label="Nombre d'options"
+            value={results.options.length.toString()}
+          />
+        </div>
+
+        <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg text-sm">
+          <p>
+            Cette stratégie personnalisée comprend {results.options.length} option(s) avec une prime totale de{" "}
+            <strong>{formatNumber(results.totalPremium)}</strong>.
+          </p>
+        </div>
+
+        <div className="mt-4">
+          <h4 className="font-medium mb-2">Détails des options:</h4>
+          {results.options.map((option: any, index: number) => {
+            const optionType = OPTION_TYPES[option.type as keyof typeof OPTION_TYPES] || option.type;
+            const strikeValue = option.strikeType === "percentage" 
+              ? `${option.strike}% (${formatNumber(params.spot * option.strike / 100)})` 
+              : formatNumber(option.strike);
+              
+            const upperBarrierValue = option.upperBarrier 
+              ? (option.upperBarrierType === "percentage" 
+                ? `${option.upperBarrier}% (${formatNumber(params.spot * option.upperBarrier / 100)})` 
+                : formatNumber(option.upperBarrier)) 
+              : null;
+              
+            const lowerBarrierValue = option.lowerBarrier 
+              ? (option.lowerBarrierType === "percentage" 
+                ? `${option.lowerBarrier}% (${formatNumber(params.spot * option.lowerBarrier / 100)})` 
+                : formatNumber(option.lowerBarrier)) 
+              : null;
+
+            return (
+              <div key={index} className="mb-2 p-2 bg-muted/30 rounded-lg">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="font-medium">Type:</span> {optionType}
+                  </div>
+                  <div>
+                    <span className="font-medium">Strike:</span> {strikeValue}
+                  </div>
+                  
+                  {upperBarrierValue && (
+                    <div>
+                      <span className="font-medium">
+                        {option.type.includes("DKO") || option.type.includes("DKI") 
+                          ? "Barrière haute:" 
+                          : "Barrière:"}
+                      </span> {upperBarrierValue}
+                    </div>
+                  )}
+                  
+                  {lowerBarrierValue && (
+                    <div>
+                      <span className="font-medium">Barrière basse:</span> {lowerBarrierValue}
+                    </div>
+                  )}
+                  
+                  <div>
+                    <span className="font-medium">Volatilité:</span> {option.volatility}%
+                  </div>
+                  <div>
+                    <span className="font-medium">Quantité:</span> {option.quantity}%
+                  </div>
+                  <div>
+                    <span className="font-medium">Prime:</span> {formatNumber(option.premium)}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   const renderStrategyDetails = () => {
+    if (selectedStrategy === "custom") {
+      return renderCustomStrategyDetails();
+    }
+    
     switch (selectedStrategy) {
       case "collar":
         return (
@@ -366,7 +467,7 @@ const StrategyInfo = ({ selectedStrategy, results, params }: StrategyInfoProps) 
   return (
     <HoverCard>
       <Heading level={3}>
-        {STRATEGIES[selectedStrategy as keyof typeof STRATEGIES].name} - Results
+        {STRATEGIES[selectedStrategy as keyof typeof STRATEGIES]?.name || "Stratégie"} - Results
       </Heading>
       {renderStrategyDetails()}
     </HoverCard>

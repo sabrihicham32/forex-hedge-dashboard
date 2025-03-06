@@ -80,7 +80,55 @@ const PayoffChart = ({ data, selectedStrategy, spot }: PayoffChartProps) => {
     ];
 
     // Add strategy-specific lines
-    if (selectedStrategy === "callKO" && data.length > 0) {
+    if (selectedStrategy === "custom" && data.length > 0) {
+      // Add option strikes and barriers for custom strategy
+      const keys = Object.keys(data[0]);
+      
+      // Find all strike and barrier keys
+      const strikeKeys = keys.filter(key => key.includes("Strike"));
+      const barrierKeys = keys.filter(key => key.includes("Barrier"));
+      
+      // Add strike lines
+      strikeKeys.forEach(key => {
+        if (data[0][key]) {
+          lines.push(
+            <Line
+              key={key}
+              type="monotone"
+              dataKey={key}
+              stroke="#047857"
+              strokeWidth={1}
+              strokeDasharray="3 3"
+              dot={false}
+            />
+          );
+        }
+      });
+      
+      // Add barrier lines
+      barrierKeys.forEach(key => {
+        if (data[0][key]) {
+          const isUpper = key.includes("Upper");
+          const color = isUpper ? "#EF4444" : "#10B981";
+          
+          referenceLines.push(
+            <ReferenceLine
+              key={key}
+              x={data[0][key]}
+              stroke={color}
+              strokeWidth={1}
+              strokeDasharray="5 5"
+              label={{
+                value: key,
+                position: isUpper ? "top" : "bottom",
+                fill: color,
+                fontSize: 12,
+              }}
+            />
+          );
+        }
+      });
+    } else if (selectedStrategy === "callKO" && data.length > 0) {
       // Add KO barrier line
       if (data[0]["KO Barrier"]) {
         referenceLines.push(
@@ -99,9 +147,7 @@ const PayoffChart = ({ data, selectedStrategy, spot }: PayoffChartProps) => {
           />
         );
       }
-    }
-
-    if (selectedStrategy === "putKI" && data.length > 0) {
+    } else if (selectedStrategy === "putKI" && data.length > 0) {
       // Add KI barrier line
       if (data[0]["KI Barrier"]) {
         referenceLines.push(
@@ -120,9 +166,7 @@ const PayoffChart = ({ data, selectedStrategy, spot }: PayoffChartProps) => {
           />
         );
       }
-    }
-
-    if (selectedStrategy === "callPutKI_KO" && data.length > 0) {
+    } else if (selectedStrategy === "callPutKI_KO" && data.length > 0) {
       // Add Upper and Lower barrier lines
       if (data[0]["Upper Barrier"]) {
         referenceLines.push(
