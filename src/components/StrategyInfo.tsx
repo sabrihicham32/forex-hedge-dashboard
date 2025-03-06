@@ -242,6 +242,122 @@ const StrategyInfo = ({ selectedStrategy, results, params }: StrategyInfoProps) 
           </>
         );
 
+      case "callKO":
+        return (
+          <>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <ValueDisplay
+                label="Call Strike"
+                value={formatNumber(results.callStrike)}
+                highlight
+              />
+              <ValueDisplay
+                label="KO Barrier"
+                value={formatNumber(results.barrier)}
+                highlight
+              />
+              <ValueDisplay
+                label="Call Premium"
+                value={formatNumber(results.callPrice)}
+                suffix="% of notional"
+              />
+            </div>
+            <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg text-sm">
+              <p>
+                This Knock-Out Call option provides protection above{" "}
+                <strong>{formatNumber(results.callStrike)}</strong> as long as the rate
+                doesn't exceed the barrier at{" "}
+                <strong>{formatNumber(results.barrier)}</strong>. The premium
+                is <strong>{formatNumber(results.callPrice)}</strong>.
+              </p>
+            </div>
+          </>
+        );
+
+      case "putKI":
+        return (
+          <>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <ValueDisplay
+                label="Put Strike"
+                value={formatNumber(results.putStrike)}
+                highlight
+              />
+              <ValueDisplay
+                label="KI Barrier"
+                value={formatNumber(results.barrier)}
+                highlight
+              />
+              <ValueDisplay
+                label="Put Premium"
+                value={formatNumber(results.putPrice)}
+                suffix="% of notional"
+              />
+            </div>
+            <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg text-sm">
+              <p>
+                This Knock-In Put option provides protection below{" "}
+                <strong>{formatNumber(results.putStrike)}</strong> only if the rate
+                reaches the barrier at{" "}
+                <strong>{formatNumber(results.barrier)}</strong>. The premium
+                is <strong>{formatNumber(results.putPrice)}</strong>.
+              </p>
+            </div>
+          </>
+        );
+
+      case "callPutKI_KO":
+        return (
+          <>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <ValueDisplay
+                label="Call Strike"
+                value={formatNumber(results.callStrike)}
+              />
+              <ValueDisplay
+                label="Upper Barrier (KO)"
+                value={formatNumber(results.barrierUpper)}
+                highlight
+              />
+              <ValueDisplay
+                label="Put Strike"
+                value={formatNumber(results.putStrike)}
+              />
+              <ValueDisplay
+                label="Lower Barrier (KI)"
+                value={formatNumber(results.barrierLower)}
+                highlight
+              />
+              <ValueDisplay
+                label="Call Premium"
+                value={formatNumber(results.callPrice)}
+                suffix="% of notional"
+              />
+              <ValueDisplay
+                label="Put Premium"
+                value={formatNumber(results.putPrice)}
+                suffix="% of notional"
+              />
+              <ValueDisplay
+                label="Total Premium"
+                value={formatNumber(results.totalPremium)}
+                suffix="% of notional"
+                className="col-span-2"
+              />
+            </div>
+            <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg text-sm">
+              <p>
+                This combined strategy uses a Knock-Out Call with barrier at{" "}
+                <strong>{formatNumber(results.barrierUpper)}</strong> and a Knock-In Put 
+                with barrier at{" "}
+                <strong>{formatNumber(results.barrierLower)}</strong>. It's designed to
+                benefit from a downward move to the lower barrier. Total premium
+                is <strong>{formatNumber(results.totalPremium)}</strong>.
+              </p>
+            </div>
+          </>
+        );
+
       default:
         return null;
     }

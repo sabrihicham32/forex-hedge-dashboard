@@ -18,6 +18,8 @@ const HedgeCalculator = () => {
     strikeUpper: FOREX_PAIRS["EUR/USD"].defaultStrike,
     strikeLower: FOREX_PAIRS["EUR/USD"].defaultStrike * 0.95,
     strikeMid: FOREX_PAIRS["EUR/USD"].spot, // For strategies like seagull
+    barrierUpper: FOREX_PAIRS["EUR/USD"].defaultStrike * 1.05, // For KO barriers
+    barrierLower: FOREX_PAIRS["EUR/USD"].defaultStrike * 0.9, // For KI barriers
     maturity: 1,
     r1: 0.02, // Rate for currency 1
     r2: 0.03, // Rate for currency 2
@@ -36,6 +38,8 @@ const HedgeCalculator = () => {
       strikeUpper: FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].defaultStrike,
       strikeLower: FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].defaultStrike * 0.95,
       strikeMid: FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].spot,
+      barrierUpper: FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].defaultStrike * 1.05,
+      barrierLower: FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].defaultStrike * 0.9,
       vol: FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].vol,
     }));
   };
@@ -141,7 +145,9 @@ const HedgeCalculator = () => {
               </div>
 
               {/* Strategy-specific inputs */}
-              {(selectedStrategy === "collar" || selectedStrategy === "strangle" || selectedStrategy === "call" || selectedStrategy === "seagull") && (
+              {(selectedStrategy === "collar" || selectedStrategy === "strangle" || 
+                selectedStrategy === "call" || selectedStrategy === "seagull" || 
+                selectedStrategy === "callKO" || selectedStrategy === "callPutKI_KO") && (
                 <div>
                   <label className="block text-sm font-medium mb-1">
                     {selectedStrategy === "seagull" ? "Call Sell Strike (High)" : "Call Strike"}
@@ -156,7 +162,9 @@ const HedgeCalculator = () => {
                 </div>
               )}
 
-              {(selectedStrategy === "collar" || selectedStrategy === "strangle" || selectedStrategy === "put" || selectedStrategy === "seagull") && (
+              {(selectedStrategy === "collar" || selectedStrategy === "strangle" || 
+                selectedStrategy === "put" || selectedStrategy === "seagull" || 
+                selectedStrategy === "putKI" || selectedStrategy === "callPutKI_KO") && (
                 <div>
                   <label className="block text-sm font-medium mb-1">
                     {selectedStrategy === "seagull" ? "Put Sell Strike (Low)" : "Put Strike"}
@@ -179,6 +187,44 @@ const HedgeCalculator = () => {
                       type="number"
                       value={params.strikeMid}
                       onChange={(e) => setParams((prev) => ({ ...prev, strikeMid: parseFloat(e.target.value) }))}
+                      step="0.01"
+                      className="input-field mt-1"
+                    />
+                  </label>
+                </div>
+              )}
+
+              {/* Barrier inputs for KO/KI strategies */}
+              {(selectedStrategy === "callKO" || selectedStrategy === "callPutKI_KO") && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Upper Barrier (KO)
+                    <input
+                      type="number"
+                      value={params.barrierUpper}
+                      onChange={(e) => setParams((prev) => ({ ...prev, barrierUpper: parseFloat(e.target.value) }))}
+                      step="0.01"
+                      className="input-field mt-1"
+                    />
+                  </label>
+                </div>
+              )}
+
+              {(selectedStrategy === "putKI" || selectedStrategy === "callPutKI_KO") && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    {selectedStrategy === "callPutKI_KO" ? "Lower Barrier (KI)" : "Barrier (KI)"}
+                    <input
+                      type="number"
+                      value={selectedStrategy === "putKI" ? params.barrierUpper : params.barrierLower}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value);
+                        if (selectedStrategy === "putKI") {
+                          setParams((prev) => ({ ...prev, barrierUpper: value }));
+                        } else {
+                          setParams((prev) => ({ ...prev, barrierLower: value }));
+                        }
+                      }}
                       step="0.01"
                       className="input-field mt-1"
                     />

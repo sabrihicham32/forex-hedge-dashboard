@@ -1,4 +1,3 @@
-
 import { erf } from 'mathjs';
 
 // Black-Scholes option pricing for Forex
@@ -25,6 +24,42 @@ export const calculatePut = (S: number, K: number, T: number, r1: number, r2: nu
 // Forward rate calculation
 export const calculateForward = (S: number, T: number, r1: number, r2: number) => {
   return S * Math.exp((r1 - r2) * T);
+};
+
+// New function to calculate barrier option prices
+export const calculateBarrierOption = (type: string, S: number, K: number, B: number, T: number, r1: number, r2: number, sigma: number, isKnockIn: boolean) => {
+  // Simplified barrier option pricing
+  // In a real application, this would use more complex models
+  // This is a simple approximation for demo purposes
+  
+  const standardPrice = type === 'call' 
+    ? calculateCall(S, K, T, r1, r2, sigma) 
+    : calculatePut(S, K, T, r1, r2, sigma);
+  
+  // Barrier adjustment factor
+  let barrierFactor;
+  
+  if (type === 'call') {
+    if (isKnockIn) {
+      // Call KI - B is typically below spot
+      barrierFactor = Math.max(0, Math.min(1, (S - B) / (0.1 * S)));
+    } else {
+      // Call KO - B is typically above spot
+      barrierFactor = Math.max(0, Math.min(1, (B - S) / (0.1 * S)));
+    }
+  } else {
+    if (isKnockIn) {
+      // Put KI - B is typically above spot
+      barrierFactor = Math.max(0, Math.min(1, (B - S) / (0.1 * S)));
+    } else {
+      // Put KO - B is typically below spot
+      barrierFactor = Math.max(0, Math.min(1, (S - B) / (0.1 * S)));
+    }
+  }
+  
+  // Adjust price by barrier factor
+  // This is a simplified approach - real pricing would be more complex
+  return standardPrice * barrierFactor;
 };
 
 // Find equivalent strike for zero-cost collar
@@ -138,13 +173,15 @@ export const calculateStrategyResults = (
     strikeUpper: number;
     strikeLower: number;
     strikeMid: number;
+    barrierUpper: number;
+    barrierLower: number;
     maturity: number;
     r1: number;
     r2: number;
     vol: number;
   }
 ) => {
-  const { spot, strikeUpper, strikeLower, strikeMid, maturity, r1, r2, vol } = params;
+  const { spot, strikeUpper, strikeLower, strikeMid, barrierUpper, barrierLower, maturity, r1, r2, vol } = params;
   
   switch(selectedStrategy) {
     case 'collar':
@@ -215,6 +252,42 @@ export const calculateStrategyResults = (
         callSellPrice: seagullCallSell,
         putSellPrice: seagullPutSell,
         netPremium
+      };
+    
+    case 'callKO':
+      // Call with Knock-Out barrier
+      const callKOPrice = calculateBarrierOption('call', spot, strikeUpper, barrierUpper, maturity, r1, r2, vol, false);
+      return {
+        callStrike: strikeUpper,
+        barrier: barrierUpper,
+        callPrice: callKOPrice,
+        details: "Call KO désactivé si le taux dépasse la barrière"
+      };
+    
+    case 'putKI':
+      // Put with Knock-In barrier
+      const putKIPrice = calculateBarrierOption('put', spot, strikeLower, barrierUpper, maturity, r1, r2, vol, true);
+      return {
+        putStrike: strikeLower,
+        barrier: barrierUpper,
+        putPrice: putKIPrice,
+        details: "Put KI activé si le taux dépasse la barrière"
+      };
+    
+    case 'callPutKI_KO':
+      // Combination of Call KO and Put KI
+      const comboCallKOPrice = calculateBarrierOption('call', spot, strikeUpper, barrierUpper, maturity, r1, r2, vol, false);
+      const comboPutKIPrice = calculateBarrierOption('put', spot, strikeLower, barrierLower, maturity, r1, r2, vol, true);
+      
+      return {
+        callStrike: strikeUpper,
+        putStrike: strikeLower,
+        barrierUpper: barrierUpper,
+        barrierLower: barrierLower,
+        callPrice: comboCallKOPrice,
+        putPrice: comboPutKIPrice,
+        totalPremium: comboCallKOPrice + comboPutKIPrice,
+        details: "Stratégie pour profiter d'une baisse jusqu'à la barrière"
       };
     
     default:
@@ -292,6 +365,54 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
         hedgedPayoff -= results.netPremium;
         break;
       
+      case 'callKO':
+        if (spot > results.barrier) {
+          // Barrier knocked out - no protection
+          hedgedPayoff = spot;
+        } else if (spot > results.callStrike) {
+          // Call protection active
+          hedgedPayoff = results.callStrike;
+        } else {
+          // Below call strike
+          hedgedPayoff = spot;
+        }
+        // Adjust for premium cost
+        hedgedPayoff -= results.callPrice;
+        break;
+      
+      case 'putKI':
+        if (spot > results.barrier) {
+          // Barrier activated put
+          hedgedPayoff = Math.max(spot, results.putStrike);
+        } else {
+          // Barrier not reached, no protection
+          hedgedPayoff = spot;
+        }
+        // Adjust for premium cost
+        hedgedPayoff -= results.putPrice;
+        break;
+      
+      case 'callPutKI_KO':
+        if (spot > results.barrierUpper) {
+          // Upper barrier knocked out call, no upper protection
+          hedgedPayoff = spot;
+        } else if (spot < results.barrierLower) {
+          // Lower barrier activated put
+          hedgedPayoff = results.putStrike;
+        } else if (spot > results.callStrike) {
+          // Call protection active
+          hedgedPayoff = results.callStrike;
+        } else if (spot < results.putStrike) {
+          // Between barriers, put not activated
+          hedgedPayoff = spot;
+        } else {
+          // Between strikes
+          hedgedPayoff = spot;
+        }
+        // Adjust for premium cost
+        hedgedPayoff -= results.totalPremium;
+        break;
+      
       default:
         hedgedPayoff = spot;
     }
@@ -320,6 +441,19 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
       dataPoint['Put Sell Strike'] = parseFloat(results.putSellStrike.toFixed(4));
       dataPoint['Put Buy Strike'] = parseFloat(results.putBuyStrike.toFixed(4));
       dataPoint['Call Sell Strike'] = parseFloat(results.callSellStrike.toFixed(4));
+    }
+    
+    if (selectedStrategy === 'callKO') {
+      dataPoint['Call Strike'] = parseFloat(results.callStrike.toFixed(4));
+      dataPoint['KO Barrier'] = parseFloat(results.barrier.toFixed(4));
+    } else if (selectedStrategy === 'putKI') {
+      dataPoint['Put Strike'] = parseFloat(results.putStrike.toFixed(4));
+      dataPoint['KI Barrier'] = parseFloat(results.barrier.toFixed(4));
+    } else if (selectedStrategy === 'callPutKI_KO') {
+      dataPoint['Call Strike'] = parseFloat(results.callStrike.toFixed(4));
+      dataPoint['Put Strike'] = parseFloat(results.putStrike.toFixed(4));
+      dataPoint['Upper Barrier'] = parseFloat(results.barrierUpper.toFixed(4));
+      dataPoint['Lower Barrier'] = parseFloat(results.barrierLower.toFixed(4));
     }
     
     spots.push(dataPoint);

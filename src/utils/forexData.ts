@@ -1,3 +1,4 @@
+
 // Forex pair data with trading information
 export const FOREX_PAIRS = {
     // Majors
@@ -75,6 +76,24 @@ export const STRATEGIES = {
         name: "Call simple",
         description: "Protection simple contre la hausse, avec paiement de prime",
         needsStrikes: true
+    },
+    "callKO": {
+        name: "Call avec barrière KO",
+        description: "Protection contre la hausse avec barrière désactivante (Knock-Out)",
+        needsStrikes: true,
+        needsBarrier: true
+    },
+    "putKI": {
+        name: "Put avec barrière KI",
+        description: "Protection contre la baisse avec barrière activante (Knock-In)",
+        needsStrikes: true,
+        needsBarrier: true
+    },
+    "callPutKI_KO": {
+        name: "Call KO + Put KI",
+        description: "Combine un Call KO et un Put KI pour profiter d'une baisse jusqu'à une barrière",
+        needsStrikes: true,
+        needsBarrier: true
     }
 };
 

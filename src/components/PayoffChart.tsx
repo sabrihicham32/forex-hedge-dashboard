@@ -79,6 +79,88 @@ const PayoffChart = ({ data, selectedStrategy, spot }: PayoffChartProps) => {
       />,
     ];
 
+    // Add strategy-specific lines
+    if (selectedStrategy === "callKO" && data.length > 0) {
+      // Add KO barrier line
+      if (data[0]["KO Barrier"]) {
+        referenceLines.push(
+          <ReferenceLine
+            key="ko-barrier"
+            x={data[0]["KO Barrier"]}
+            stroke="#EF4444"
+            strokeWidth={1}
+            strokeDasharray="5 5"
+            label={{
+              value: "KO Barrier",
+              position: "top",
+              fill: "#EF4444",
+              fontSize: 12,
+            }}
+          />
+        );
+      }
+    }
+
+    if (selectedStrategy === "putKI" && data.length > 0) {
+      // Add KI barrier line
+      if (data[0]["KI Barrier"]) {
+        referenceLines.push(
+          <ReferenceLine
+            key="ki-barrier"
+            x={data[0]["KI Barrier"]}
+            stroke="#10B981"
+            strokeWidth={1}
+            strokeDasharray="5 5"
+            label={{
+              value: "KI Barrier",
+              position: "top",
+              fill: "#10B981",
+              fontSize: 12,
+            }}
+          />
+        );
+      }
+    }
+
+    if (selectedStrategy === "callPutKI_KO" && data.length > 0) {
+      // Add Upper and Lower barrier lines
+      if (data[0]["Upper Barrier"]) {
+        referenceLines.push(
+          <ReferenceLine
+            key="upper-barrier"
+            x={data[0]["Upper Barrier"]}
+            stroke="#EF4444"
+            strokeWidth={1}
+            strokeDasharray="5 5"
+            label={{
+              value: "Upper KO",
+              position: "top",
+              fill: "#EF4444",
+              fontSize: 12,
+            }}
+          />
+        );
+      }
+      
+      if (data[0]["Lower Barrier"]) {
+        referenceLines.push(
+          <ReferenceLine
+            key="lower-barrier"
+            x={data[0]["Lower Barrier"]}
+            stroke="#10B981"
+            strokeWidth={1}
+            strokeDasharray="5 5"
+            label={{
+              value: "Lower KI",
+              position: "bottom",
+              fill: "#10B981",
+              fontSize: 12,
+            }}
+          />
+        );
+      }
+    }
+
     return { lines, referenceLines };
   };
 
