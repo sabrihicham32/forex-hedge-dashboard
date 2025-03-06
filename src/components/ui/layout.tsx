@@ -51,9 +51,11 @@ export const HoverCard = ({
 };
 
 // Heading with optional badge
-interface HeadingProps extends React.HTMLAttributes<HTMLHeadingElement> {
+interface HeadingProps {
+  children: React.ReactNode;
   badge?: string;
   level?: 1 | 2 | 3 | 4 | 5 | 6;
+  className?: string;
 }
 
 export const Heading = ({
@@ -78,7 +80,6 @@ export const Heading = ({
           level === 6 && "text-sm md:text-base",
           className
         )} 
-        {...props}
       >
         {children}
       </Tag>
