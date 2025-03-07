@@ -78,4 +78,6 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ spot, onS
   );
 };
 
+// Re-export the OptionComponent type so it can be imported from this file
+export type { OptionComponent };
 export default CustomStrategyBuilder;

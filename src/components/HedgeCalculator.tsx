@@ -7,7 +7,8 @@ import {
 import { FOREX_PAIRS, STRATEGIES, FOREX_PAIR_CATEGORIES } from "@/utils/forexData";
 import PayoffChart from "./PayoffChart";
 import StrategyInfo from "./StrategyInfo";
-import CustomStrategyBuilder, { OptionComponent } from "./CustomStrategyBuilder";
+import CustomStrategyBuilder from "./CustomStrategyBuilder";
+import type { OptionComponent } from "./CustomStrategyOption";
 import { calculateCustomStrategyPayoff, calculateBarrierOptionPrice } from "@/utils/barrierOptionCalculations";
 import { Section, GlassContainer, Grid, Heading } from "@/components/ui/layout";
 
