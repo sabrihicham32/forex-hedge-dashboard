@@ -2,7 +2,9 @@
 import React, { useState, useEffect } from "react";
 import { 
   calculateStrategyResults, 
-  calculatePayoff 
+  calculatePayoff,
+  calculateCall,
+  calculatePut
 } from "@/utils/hedgeCalculations";
 import { FOREX_PAIRS, STRATEGIES, FOREX_PAIR_CATEGORIES } from "@/utils/forexData";
 import PayoffChart from "./PayoffChart";
@@ -111,7 +113,6 @@ const HedgeCalculator = () => {
           option.quantity
         );
       } else if (option.type === "call") {
-        const { calculateCall } = require("@/utils/hedgeCalculations");
         premium = calculateCall(
           params.spot, 
           actualStrike, 
@@ -121,7 +122,6 @@ const HedgeCalculator = () => {
           option.volatility / 100
         ) * (option.quantity / 100);
       } else if (option.type === "put") {
-        const { calculatePut } = require("@/utils/hedgeCalculations");
         premium = calculatePut(
           params.spot, 
           actualStrike, 
