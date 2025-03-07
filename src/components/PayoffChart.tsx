@@ -85,67 +85,48 @@ const PayoffChart = ({ data, selectedStrategy, spot }: PayoffChartProps) => {
       const firstDataPoint = data[0];
       const keys = Object.keys(firstDataPoint);
       
-      // Collect all keys that contain Strike or Barrier
-      const strikeKeys = keys.filter(key => key.includes('Strike'));
-      const upperBarrierKeys = keys.filter(key => key.includes('Upper Barrier'));
-      const lowerBarrierKeys = keys.filter(key => key.includes('Lower Barrier'));
+      // Collect all strike and barrier keys
+      const optionKeys = keys.filter(key => 
+        key.includes('Strike') || 
+        key.includes('Upper Barrier') || 
+        key.includes('Lower Barrier')
+      );
       
-      // Add strike reference lines
-      strikeKeys.forEach(key => {
-        if (firstDataPoint[key]) {
-          referenceLines.push(
-            <ReferenceLine
-              key={key}
-              x={firstDataPoint[key]}
-              stroke="#047857"
-              strokeWidth={1}
-              strokeDasharray="3 3"
-              label={{
-                value: key,
-                position: "top",
-                fill: "#047857",
-                fontSize: 12,
-              }}
-            />
-          );
-        }
+      // Sort the keys to show strikes first, then barriers
+      optionKeys.sort((a, b) => {
+        // Put strikes first
+        if (a.includes('Strike') && !b.includes('Strike')) return -1;
+        if (!a.includes('Strike') && b.includes('Strike')) return 1;
+        return a.localeCompare(b);
       });
       
-      // Add upper barrier reference lines
-      upperBarrierKeys.forEach(key => {
+      // Add reference lines for each option component
+      optionKeys.forEach(key => {
         if (firstDataPoint[key]) {
+          let color = "#047857"; // Default green for strikes
+          let dashArray = "3 3";
+          let position = "top";
+          
+          if (key.includes('Upper Barrier')) {
+            color = "#EF4444"; // Red for upper barriers
+            dashArray = "5 5";
+          } else if (key.includes('Lower Barrier')) {
+            color = "#10B981"; // Green for lower barriers
+            dashArray = "5 5";
+            position = "bottom";
+          }
+          
           referenceLines.push(
             <ReferenceLine
               key={key}
               x={firstDataPoint[key]}
-              stroke="#EF4444"
+              stroke={color}
               strokeWidth={1}
-              strokeDasharray="5 5"
+              strokeDasharray={dashArray}
               label={{
                 value: key,
-                position: "top",
-                fill: "#EF4444",
-                fontSize: 12,
-              }}
-            />
-          );
-        }
-      });
-      
-      // Add lower barrier reference lines
-      lowerBarrierKeys.forEach(key => {
-        if (firstDataPoint[key]) {
-          referenceLines.push(
-            <ReferenceLine
-              key={key}
-              x={firstDataPoint[key]}
-              stroke="#10B981"
-              strokeWidth={1}
-              strokeDasharray="5 5"
-              label={{
-                value: key,
-                position: "bottom",
-                fill: "#10B981",
+                position: position,
+                fill: color,
                 fontSize: 12,
               }}
             />

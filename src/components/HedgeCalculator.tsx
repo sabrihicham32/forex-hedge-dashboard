@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { 
   calculateStrategyResults, 
@@ -11,7 +10,7 @@ import PayoffChart from "./PayoffChart";
 import StrategyInfo from "./StrategyInfo";
 import CustomStrategyBuilder from "./CustomStrategyBuilder";
 import type { OptionComponent } from "./CustomStrategyOption";
-import { calculateCustomStrategyPayoff, calculateBarrierOptionPrice } from "@/utils/barrierOptionCalculations";
+import { calculateCustomStrategyPayoff } from "@/utils/barrierOptionCalculations";
 import { Section, GlassContainer, Grid, Heading } from "@/components/ui/layout";
 
 const HedgeCalculator = () => {
@@ -19,6 +18,12 @@ const HedgeCalculator = () => {
   const [selectedStrategy, setSelectedStrategy] = useState("collar");
   const [results, setResults] = useState<any>(null);
   const [customOptions, setCustomOptions] = useState<OptionComponent[]>([]);
+  const [customGlobalParams, setCustomGlobalParams] = useState({
+    maturity: 1,
+    r1: 0.02,
+    r2: 0.03,
+    notional: 1000000,
+  });
   const [params, setParams] = useState({
     spot: FOREX_PAIRS["EUR/USD"].spot,
     strikeUpper: FOREX_PAIRS["EUR/USD"].defaultStrike,
@@ -70,8 +75,9 @@ const HedgeCalculator = () => {
     }
   };
 
-  const handleCustomStrategyChange = (options: OptionComponent[]) => {
+  const handleCustomStrategyChange = (options: OptionComponent[], globalParams: any) => {
     setCustomOptions(options);
+    setCustomGlobalParams(globalParams);
     
     const optionsWithPremiums = options.map(option => {
       const actualStrike = option.strikeType === "percentage" 
@@ -92,103 +98,79 @@ const HedgeCalculator = () => {
       
       let premium = 0;
       
-      if (option.type.includes("KO") || option.type.includes("KI")) {
-        premium = calculateBarrierOptionPrice(
-          option.type,
-          params.spot,
-          actualStrike,
-          actualUpperBarrier,
-          actualLowerBarrier,
-          params.maturity,
-          params.r1,
-          params.r2,
-          option.volatility / 100,
-          option.quantity
-        );
-      } else if (option.type === "call") {
+      if (option.type === "call") {
         premium = calculateCall(
           params.spot, 
           actualStrike, 
-          params.maturity, 
-          params.r1, 
-          params.r2, 
+          globalParams.maturity, 
+          globalParams.r1, 
+          globalParams.r2, 
           option.volatility / 100
         ) * (option.quantity / 100);
       } else if (option.type === "put") {
         premium = calculatePut(
           params.spot, 
           actualStrike, 
-          params.maturity, 
-          params.r1, 
-          params.r2, 
+          globalParams.maturity, 
+          globalParams.r1, 
+          globalParams.r2, 
           option.volatility / 100
         ) * (option.quantity / 100);
       }
       
-      return { ...option, premium };
+      return { 
+        ...option, 
+        premium,
+        actualStrike,
+        actualUpperBarrier,
+        actualLowerBarrier
+      };
     });
     
     const totalPremium = optionsWithPremiums.reduce((sum, option) => sum + (option.premium || 0), 0);
     
-    const payoffData = calculateCustomPayoffData(optionsWithPremiums, params);
+    const payoffData = calculateCustomPayoffData(optionsWithPremiums, params, globalParams);
     
     setResults({
       options: optionsWithPremiums,
       totalPremium,
-      payoffData
+      payoffData,
+      globalParams
     });
   };
 
-  const calculateCustomPayoffData = (options: any[], params: any) => {
+  const calculateCustomPayoffData = (options: any[], params: any, globalParams: any) => {
     const spots = [];
     const minSpot = params.spot * 0.7;
     const maxSpot = params.spot * 1.3;
     const step = (maxSpot - minSpot) / 100;
     
     for (let spot = minSpot; spot <= maxSpot; spot += step) {
-      const payoff = calculateCustomStrategyPayoff(options, spot, params.spot);
+      const unhedgedRate = spot;
       
-      // Le payoff représente la différence par rapport au spot
-      // Pour un call, au-dessus du strike, le taux effectif devrait être plafonné au strike
-      // plus le payoff (qui est un gain par rapport au spot)
+      const payoff = calculateCustomStrategyPayoff(options, spot, params.spot, globalParams);
+      
+      const hedgedRate = unhedgedRate + payoff;
+      
       const dataPoint: any = {
         spot: parseFloat(spot.toFixed(4)),
-        'Unhedged Rate': parseFloat(spot.toFixed(4)),
-        'Hedged Rate': parseFloat((spot + payoff).toFixed(4)),
+        'Unhedged Rate': parseFloat(unhedgedRate.toFixed(4)),
+        'Hedged Rate': parseFloat(hedgedRate.toFixed(4)),
         'Initial Spot': parseFloat(params.spot.toFixed(4))
       };
       
-      // Stockons toutes les références de prix (strikes, barrières) dans le premier point de données
       if (spots.length === 0) {
         options.forEach((option, index) => {
-          const actualStrike = option.strikeType === "percentage" 
-            ? params.spot * (option.strike / 100) 
-            : option.strike;
-            
-          dataPoint[`Option ${index+1} Strike`] = parseFloat(actualStrike.toFixed(4));
-          
-          if (option.upperBarrier) {
-            const actualBarrier = option.upperBarrierType === "percentage" 
-              ? params.spot * (option.upperBarrier / 100) 
-              : option.upperBarrier;
-              
-            dataPoint[`Option ${index+1} Upper Barrier`] = parseFloat(actualBarrier.toFixed(4));
+          if (option.actualStrike) {
+            dataPoint[`Option ${index+1} Strike`] = parseFloat(option.actualStrike.toFixed(4));
           }
           
-          if (option.lowerBarrier) {
-            const actualBarrier = option.lowerBarrierType === "percentage" 
-              ? params.spot * (option.lowerBarrier / 100) 
-              : option.lowerBarrier;
-              
-            dataPoint[`Option ${index+1} Lower Barrier`] = parseFloat(actualBarrier.toFixed(4));
+          if (option.actualUpperBarrier) {
+            dataPoint[`Option ${index+1} Upper Barrier`] = parseFloat(option.actualUpperBarrier.toFixed(4));
           }
-        });
-      } else {
-        // Copier les références de prix du premier point de données
-        const firstDataPoint = spots[0];
-        Object.keys(firstDataPoint).forEach(key => {
-          if (key.includes('Strike') || key.includes('Barrier')) {
-            dataPoint[key] = firstDataPoint[key];
+          
+          if (option.actualLowerBarrier) {
+            dataPoint[`Option ${index+1} Lower Barrier`] = parseFloat(option.actualLowerBarrier.toFixed(4));
           }
         });
       }
@@ -204,7 +186,7 @@ const HedgeCalculator = () => {
     
     if (selectedStrategy === "custom") {
       if (customOptions.length > 0) {
-        handleCustomStrategyChange(customOptions);
+        handleCustomStrategyChange(customOptions, customGlobalParams);
       }
       return;
     }
@@ -475,3 +457,4 @@ const HedgeCalculator = () => {
 };
 
 export default HedgeCalculator;
+

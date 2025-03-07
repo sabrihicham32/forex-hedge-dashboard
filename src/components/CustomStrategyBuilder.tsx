@@ -6,7 +6,7 @@ import { GlassContainer } from "@/components/ui/layout";
 
 interface CustomStrategyBuilderProps {
   spot: number;
-  onStrategyChange: (options: OptionComponent[]) => void;
+  onStrategyChange: (options: OptionComponent[], globalParams: any) => void;
 }
 
 const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ spot, onStrategyChange }) => {
@@ -36,35 +36,37 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ spot, onS
     };
     const updatedOptions = [...options, newOption];
     setOptions(updatedOptions);
-    onStrategyChange(updatedOptions);
+    onStrategyChange(updatedOptions, globalParams);
   };
 
   const handleUpdateOption = (index: number, data: Partial<OptionComponent>) => {
     const updatedOptions = [...options];
     updatedOptions[index] = { ...updatedOptions[index], ...data };
     setOptions(updatedOptions);
-    onStrategyChange(updatedOptions);
+    onStrategyChange(updatedOptions, globalParams);
   };
 
   const handleDeleteOption = (index: number) => {
     const updatedOptions = [...options];
     updatedOptions.splice(index, 1);
     setOptions(updatedOptions);
-    onStrategyChange(updatedOptions);
+    onStrategyChange(updatedOptions, globalParams);
   };
 
   const handleGlobalParamChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const parsedValue = name === 'notional' ? parseInt(value) : parseFloat(value);
-    setGlobalParams({
+    const updatedParams = {
       ...globalParams,
       [name]: parsedValue
-    });
+    };
+    setGlobalParams(updatedParams);
+    onStrategyChange(options, updatedParams);
   };
 
   useEffect(() => {
-    onStrategyChange(options);
-  }, [globalParams]);
+    onStrategyChange(options, globalParams);
+  }, []);
 
   return (
     <>
@@ -91,10 +93,14 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ spot, onS
                 type="number"
                 name="r1"
                 value={globalParams.r1 * 100}
-                onChange={(e) => setGlobalParams({
-                  ...globalParams,
-                  r1: parseFloat(e.target.value) / 100
-                })}
+                onChange={(e) => {
+                  const updatedParams = {
+                    ...globalParams,
+                    r1: parseFloat(e.target.value) / 100
+                  };
+                  setGlobalParams(updatedParams);
+                  onStrategyChange(options, updatedParams);
+                }}
                 step="0.1"
                 className="input-field mt-1 w-full"
               />
@@ -107,10 +113,14 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ spot, onS
                 type="number"
                 name="r2"
                 value={globalParams.r2 * 100}
-                onChange={(e) => setGlobalParams({
-                  ...globalParams,
-                  r2: parseFloat(e.target.value) / 100
-                })}
+                onChange={(e) => {
+                  const updatedParams = {
+                    ...globalParams,
+                    r2: parseFloat(e.target.value) / 100
+                  };
+                  setGlobalParams(updatedParams);
+                  onStrategyChange(options, updatedParams);
+                }}
                 step="0.1"
                 className="input-field mt-1 w-full"
               />

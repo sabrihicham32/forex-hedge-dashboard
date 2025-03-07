@@ -208,54 +208,42 @@ export const calculateBarrierOptionPayoff = (
   return (payoff - premium) * (quantity / 100);
 };
 
-// Fonction pour calculer le payoff d'une stratégie personnalisée
-export const calculateCustomStrategyPayoff = (options: any[], currentSpot: number, initialSpot: number) => {
+// Function to calculate custom strategy payoff
+export const calculateCustomStrategyPayoff = (
+  options: any[], 
+  spotPrice: number, 
+  initialSpot: number,
+  globalParams: any
+) => {
   let totalPayoff = 0;
   
-  options.forEach(option => {
-    const {
-      type,
-      strike,
-      strikeType,
-      upperBarrier,
-      upperBarrierType,
-      lowerBarrier,
-      lowerBarrierType,
-      volatility,
-      quantity,
-      premium
-    } = option;
-    
-    // Convertir les valeurs relatives en valeurs absolues
-    const actualStrike = strikeType === "percentage" ? initialSpot * (strike / 100) : strike;
-    const actualUpperBarrier = upperBarrier ? 
-      (upperBarrierType === "percentage" ? initialSpot * (upperBarrier / 100) : upperBarrier) : 
-      undefined;
-    const actualLowerBarrier = lowerBarrier ? 
-      (lowerBarrierType === "percentage" ? initialSpot * (lowerBarrier / 100) : lowerBarrier) : 
-      undefined;
-    
-    // Calculer le payoff individuel
+  options.forEach((option) => {
+    const quantity = option.quantity / 100; // Convert percentage to decimal
+    const strike = option.actualStrike;
     let optionPayoff = 0;
     
-    if (type.includes("KO") || type.includes("KI")) {
-      // Option avec barrière
-      optionPayoff = calculateBarrierOptionPayoff(
-        type,
-        currentSpot,
-        initialSpot,
-        actualStrike,
-        actualUpperBarrier,
-        actualLowerBarrier,
-        premium || 0,
-        quantity
-      );
-    } else if (type === "call") {
-      // Option call vanille - payoff max(0, spot - strike) - premium
-      optionPayoff = (Math.max(0, currentSpot - actualStrike) - (premium || 0)) * (quantity / 100);
-    } else if (type === "put") {
-      // Option put vanille - payoff max(0, strike - spot) - premium
-      optionPayoff = (Math.max(0, actualStrike - currentSpot) - (premium || 0)) * (quantity / 100);
+    if (!strike) return; // Skip if no strike price defined
+    
+    // Calculate payoff based on option type
+    switch (option.type) {
+      case "call":
+        // For call, the payoff is max(0, spot - strike) * quantity
+        if (spotPrice > strike) {
+          optionPayoff = (strike - spotPrice) * quantity;
+        }
+        break;
+        
+      case "put":
+        // For put, the payoff is max(0, strike - spot) * quantity
+        if (spotPrice < strike) {
+          optionPayoff = (strike - spotPrice) * quantity;
+        }
+        break;
+        
+      // Add handling for barrier options if needed
+        
+      default:
+        break;
     }
     
     totalPayoff += optionPayoff;
