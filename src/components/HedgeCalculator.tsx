@@ -69,18 +69,8 @@ const HedgeCalculator = () => {
     }
   };
 
-  const handleCustomStrategyChange = (options: OptionComponent[], strategyParams?: any) => {
+  const handleCustomStrategyChange = (options: OptionComponent[]) => {
     setCustomOptions(options);
-    
-    if (strategyParams) {
-      setParams(prev => ({
-        ...prev,
-        maturity: strategyParams.maturity,
-        r1: strategyParams.r1,
-        r2: strategyParams.r2,
-        notional: strategyParams.notional
-      }));
-    }
     
     const optionsWithPremiums = options.map(option => {
       const actualStrike = option.strikeType === "percentage" 
@@ -155,55 +145,13 @@ const HedgeCalculator = () => {
     const step = (maxSpot - minSpot) / 100;
     
     for (let spot = minSpot; spot <= maxSpot; spot += step) {
-      const individualPayoffs: Record<string, number> = {};
-      
-      options.forEach((option, index) => {
-        const actualStrike = option.strikeType === "percentage" 
-          ? params.spot * (option.strike / 100) 
-          : option.strike;
-          
-        const actualUpperBarrier = option.upperBarrier 
-          ? (option.upperBarrierType === "percentage" 
-              ? params.spot * (option.upperBarrier / 100) 
-              : option.upperBarrier)
-          : undefined;
-          
-        const actualLowerBarrier = option.lowerBarrier 
-          ? (option.lowerBarrierType === "percentage" 
-              ? params.spot * (option.lowerBarrier / 100) 
-              : option.lowerBarrier)
-          : undefined;
-        
-        let optionPayoff = 0;
-        
-        if (option.type.includes("KO") || option.type.includes("KI")) {
-          optionPayoff = calculateBarrierOptionPayoff(
-            option.type,
-            spot,
-            params.spot,
-            actualStrike,
-            actualUpperBarrier,
-            actualLowerBarrier,
-            option.premium || 0,
-            option.quantity
-          );
-        } else if (option.type === "call") {
-          optionPayoff = (Math.max(0, spot - actualStrike) - (option.premium || 0)) * (option.quantity / 100);
-        } else if (option.type === "put") {
-          optionPayoff = (Math.max(0, actualStrike - spot) - (option.premium || 0)) * (option.quantity / 100);
-        }
-        
-        individualPayoffs[`Option ${index+1} Payoff`] = optionPayoff;
-      });
-      
-      const totalPayoff = Object.values(individualPayoffs).reduce((sum, payoff) => sum + payoff, 0);
+      const payoff = calculateCustomStrategyPayoff(options, spot, params.spot);
       
       const dataPoint: any = {
         spot: parseFloat(spot.toFixed(4)),
-        'Hedged Rate': parseFloat((spot + totalPayoff).toFixed(4)),
+        'Hedged Rate': parseFloat((spot + payoff).toFixed(4)),
         'Unhedged Rate': parseFloat(spot.toFixed(4)),
-        'Initial Spot': parseFloat(params.spot.toFixed(4)),
-        ...individualPayoffs
+        'Initial Spot': parseFloat(params.spot.toFixed(4))
       };
       
       if (spots.length === 0) {
@@ -521,3 +469,4 @@ const HedgeCalculator = () => {
 };
 
 export default HedgeCalculator;
+

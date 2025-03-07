@@ -1,3 +1,4 @@
+
 import React from "react";
 import {
   LineChart,
@@ -80,30 +81,14 @@ const PayoffChart = ({ data, selectedStrategy, spot }: PayoffChartProps) => {
 
     // Add strategy-specific lines
     if (selectedStrategy === "custom" && data.length > 0) {
-      // Find all keys in the data that we need to display as reference lines
+      // Find all strike and barrier keys
       const firstDataPoint = data[0];
       const keys = Object.keys(firstDataPoint);
       
-      // Separate different types of keys for better visualization
+      // Collect all keys that contain Strike, Upper Barrier, or Lower Barrier
       const strikeKeys = keys.filter(key => key.includes("Strike"));
       const upperBarrierKeys = keys.filter(key => key.includes("Upper Barrier"));
       const lowerBarrierKeys = keys.filter(key => key.includes("Lower Barrier"));
-      
-      // Add individual payoff lines for each option in custom strategy
-      const optionKeys = keys.filter(key => key.includes("Option") && key.includes("Payoff"));
-      optionKeys.forEach(key => {
-        lines.push(
-          <Line
-            key={key}
-            type="monotone"
-            dataKey={key}
-            stroke={getRandomColor(key)}
-            strokeWidth={1.5}
-            dot={false}
-            activeDot={{ r: 4 }}
-          />
-        );
-      });
       
       // Add strike reference lines
       strikeKeys.forEach(key => {
@@ -245,24 +230,6 @@ const PayoffChart = ({ data, selectedStrategy, spot }: PayoffChartProps) => {
     }
 
     return { lines, referenceLines };
-  };
-
-  // Function to generate consistent colors for option payoff lines
-  const getRandomColor = (key: string) => {
-    const colors = [
-      "#8B5CF6", // Purple
-      "#EC4899", // Pink
-      "#F59E0B", // Amber
-      "#10B981", // Emerald
-      "#3B82F6", // Blue
-      "#6366F1", // Indigo
-      "#D946EF", // Fuchsia
-      "#F97316", // Orange
-    ];
-    
-    // Use the key's hash to select a consistent color
-    const sum = key.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colors[sum % colors.length];
   };
 
   const { lines, referenceLines } = getChartConfig();

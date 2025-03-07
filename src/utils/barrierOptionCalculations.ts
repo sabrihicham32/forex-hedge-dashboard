@@ -1,3 +1,4 @@
+
 // Calculs pour les options avec barrière
 
 // Fonction pour calculer le prix d'une option avec barrière
@@ -169,21 +170,6 @@ export const calculateBarrierOptionPayoff = (
         isBarrierEffect = currentSpot > upperBarrier;
       } else {
         isBarrierEffect = currentSpot < upperBarrier;
-      }
-    }
-  } else if (lowerBarrier) {
-    // Barrière inférieure
-    if (isCall) {
-      if (isReverse) {
-        isBarrierEffect = currentSpot > lowerBarrier;
-      } else {
-        isBarrierEffect = currentSpot < lowerBarrier;
-      }
-    } else { // Put
-      if (isReverse) {
-        isBarrierEffect = currentSpot < lowerBarrier;
-      } else {
-        isBarrierEffect = currentSpot > lowerBarrier;
       }
     }
   }
