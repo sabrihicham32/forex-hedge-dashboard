@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { 
   calculateStrategyResults, 
@@ -147,13 +148,17 @@ const HedgeCalculator = () => {
     for (let spot = minSpot; spot <= maxSpot; spot += step) {
       const payoff = calculateCustomStrategyPayoff(options, spot, params.spot);
       
+      // Le payoff représente la différence par rapport au spot
+      // Pour un call, au-dessus du strike, le taux effectif devrait être plafonné au strike
+      // plus le payoff (qui est un gain par rapport au spot)
       const dataPoint: any = {
         spot: parseFloat(spot.toFixed(4)),
-        'Hedged Rate': parseFloat((spot + payoff).toFixed(4)),
         'Unhedged Rate': parseFloat(spot.toFixed(4)),
+        'Hedged Rate': parseFloat((spot + payoff).toFixed(4)),
         'Initial Spot': parseFloat(params.spot.toFixed(4))
       };
       
+      // Stockons toutes les références de prix (strikes, barrières) dans le premier point de données
       if (spots.length === 0) {
         options.forEach((option, index) => {
           const actualStrike = option.strikeType === "percentage" 
@@ -179,6 +184,7 @@ const HedgeCalculator = () => {
           }
         });
       } else {
+        // Copier les références de prix du premier point de données
         const firstDataPoint = spots[0];
         Object.keys(firstDataPoint).forEach(key => {
           if (key.includes('Strike') || key.includes('Barrier')) {
@@ -469,4 +475,3 @@ const HedgeCalculator = () => {
 };
 
 export default HedgeCalculator;
-

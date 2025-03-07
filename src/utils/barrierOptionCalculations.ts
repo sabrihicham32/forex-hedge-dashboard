@@ -1,4 +1,3 @@
-
 // Calculs pour les options avec barrière
 
 // Fonction pour calculer le prix d'une option avec barrière
@@ -128,7 +127,7 @@ const normCDF = (x: number) => {
   return 0.5 * (1.0 + sign * y);
 };
 
-// Calculer le payoff d'une option avec barrière à un spot donné
+// Fonction pour calculer le payoff d'une option avec barrière à un spot donné
 export const calculateBarrierOptionPayoff = (
   type: string,
   currentSpot: number,
@@ -251,13 +250,12 @@ export const calculateCustomStrategyPayoff = (options: any[], currentSpot: numbe
         premium || 0,
         quantity
       );
-    } else {
-      // Option vanille
-      if (type === "call") {
-        optionPayoff = (Math.max(0, currentSpot - actualStrike) - (premium || 0)) * (quantity / 100);
-      } else if (type === "put") {
-        optionPayoff = (Math.max(0, actualStrike - currentSpot) - (premium || 0)) * (quantity / 100);
-      }
+    } else if (type === "call") {
+      // Option call vanille - payoff max(0, spot - strike) - premium
+      optionPayoff = (Math.max(0, currentSpot - actualStrike) - (premium || 0)) * (quantity / 100);
+    } else if (type === "put") {
+      // Option put vanille - payoff max(0, strike - spot) - premium
+      optionPayoff = (Math.max(0, actualStrike - currentSpot) - (premium || 0)) * (quantity / 100);
     }
     
     totalPayoff += optionPayoff;

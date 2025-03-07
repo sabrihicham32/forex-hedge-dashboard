@@ -85,10 +85,10 @@ const PayoffChart = ({ data, selectedStrategy, spot }: PayoffChartProps) => {
       const firstDataPoint = data[0];
       const keys = Object.keys(firstDataPoint);
       
-      // Collect all keys that contain Strike, Upper Barrier, or Lower Barrier
-      const strikeKeys = keys.filter(key => key.includes("Strike"));
-      const upperBarrierKeys = keys.filter(key => key.includes("Upper Barrier"));
-      const lowerBarrierKeys = keys.filter(key => key.includes("Lower Barrier"));
+      // Collect all keys that contain Strike or Barrier
+      const strikeKeys = keys.filter(key => key.includes('Strike'));
+      const upperBarrierKeys = keys.filter(key => key.includes('Upper Barrier'));
+      const lowerBarrierKeys = keys.filter(key => key.includes('Lower Barrier'));
       
       // Add strike reference lines
       strikeKeys.forEach(key => {
