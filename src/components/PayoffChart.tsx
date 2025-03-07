@@ -81,47 +81,71 @@ const PayoffChart = ({ data, selectedStrategy, spot }: PayoffChartProps) => {
 
     // Add strategy-specific lines
     if (selectedStrategy === "custom" && data.length > 0) {
-      // Add option strikes and barriers for custom strategy
-      const keys = Object.keys(data[0]);
-      
       // Find all strike and barrier keys
-      const strikeKeys = keys.filter(key => key.includes("Strike"));
-      const barrierKeys = keys.filter(key => key.includes("Barrier"));
+      const firstDataPoint = data[0];
+      const keys = Object.keys(firstDataPoint);
       
-      // Add strike lines
+      // Collect all keys that contain Strike, Upper Barrier, or Lower Barrier
+      const strikeKeys = keys.filter(key => key.includes("Strike"));
+      const upperBarrierKeys = keys.filter(key => key.includes("Upper Barrier"));
+      const lowerBarrierKeys = keys.filter(key => key.includes("Lower Barrier"));
+      
+      // Add strike reference lines
       strikeKeys.forEach(key => {
-        if (data[0][key]) {
-          lines.push(
-            <Line
+        if (firstDataPoint[key]) {
+          referenceLines.push(
+            <ReferenceLine
               key={key}
-              type="monotone"
-              dataKey={key}
+              x={firstDataPoint[key]}
               stroke="#047857"
               strokeWidth={1}
               strokeDasharray="3 3"
-              dot={false}
+              label={{
+                value: key,
+                position: "top",
+                fill: "#047857",
+                fontSize: 12,
+              }}
             />
           );
         }
       });
       
-      // Add barrier lines
-      barrierKeys.forEach(key => {
-        if (data[0][key]) {
-          const isUpper = key.includes("Upper");
-          const color = isUpper ? "#EF4444" : "#10B981";
-          
+      // Add upper barrier reference lines
+      upperBarrierKeys.forEach(key => {
+        if (firstDataPoint[key]) {
           referenceLines.push(
             <ReferenceLine
               key={key}
-              x={data[0][key]}
-              stroke={color}
+              x={firstDataPoint[key]}
+              stroke="#EF4444"
               strokeWidth={1}
               strokeDasharray="5 5"
               label={{
                 value: key,
-                position: isUpper ? "top" : "bottom",
-                fill: color,
+                position: "top",
+                fill: "#EF4444",
+                fontSize: 12,
+              }}
+            />
+          );
+        }
+      });
+      
+      // Add lower barrier reference lines
+      lowerBarrierKeys.forEach(key => {
+        if (firstDataPoint[key]) {
+          referenceLines.push(
+            <ReferenceLine
+              key={key}
+              x={firstDataPoint[key]}
+              stroke="#10B981"
+              strokeWidth={1}
+              strokeDasharray="5 5"
+              label={{
+                value: key,
+                position: "bottom",
+                fill: "#10B981",
                 fontSize: 12,
               }}
             />

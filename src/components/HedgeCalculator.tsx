@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { 
   calculateStrategyResults, 
@@ -23,18 +22,17 @@ const HedgeCalculator = () => {
     spot: FOREX_PAIRS["EUR/USD"].spot,
     strikeUpper: FOREX_PAIRS["EUR/USD"].defaultStrike,
     strikeLower: FOREX_PAIRS["EUR/USD"].defaultStrike * 0.95,
-    strikeMid: FOREX_PAIRS["EUR/USD"].spot, // For strategies like seagull
-    barrierUpper: FOREX_PAIRS["EUR/USD"].defaultStrike * 1.05, // For KO barriers
-    barrierLower: FOREX_PAIRS["EUR/USD"].defaultStrike * 0.9, // For KI barriers
+    strikeMid: FOREX_PAIRS["EUR/USD"].spot,
+    barrierUpper: FOREX_PAIRS["EUR/USD"].defaultStrike * 1.05,
+    barrierLower: FOREX_PAIRS["EUR/USD"].defaultStrike * 0.9,
     maturity: 1,
-    r1: 0.02, // Rate for currency 1
-    r2: 0.03, // Rate for currency 2
+    r1: 0.02,
+    r2: 0.03,
     vol: FOREX_PAIRS["EUR/USD"].vol,
-    premium: 0, // For non-zero cost strategies
-    notional: 1000000, // Nominal amount to hedge
+    premium: 0,
+    notional: 1000000,
   });
 
-  // Handle forex pair change
   const handlePairChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const pair = e.target.value;
     setSelectedPair(pair);
@@ -50,17 +48,14 @@ const HedgeCalculator = () => {
     }));
   };
 
-  // Handle strategy change
   const handleStrategyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newStrategy = e.target.value;
     setSelectedStrategy(newStrategy);
 
-    // Reset certain parameters based on strategy
     if (newStrategy === "seagull" && !params.strikeMid) {
       setParams((prev) => ({ ...prev, strikeMid: params.spot }));
     }
     
-    // Initialize custom options if strategy is custom
     if (newStrategy === "custom" && customOptions.length === 0) {
       setCustomOptions([
         {
@@ -74,11 +69,9 @@ const HedgeCalculator = () => {
     }
   };
 
-  // Handle custom strategy options update
   const handleCustomStrategyChange = (options: OptionComponent[]) => {
     setCustomOptions(options);
     
-    // Calculate premiums for each option
     const optionsWithPremiums = options.map(option => {
       const actualStrike = option.strikeType === "percentage" 
         ? params.spot * (option.strike / 100) 
@@ -96,7 +89,6 @@ const HedgeCalculator = () => {
             : option.lowerBarrier)
         : undefined;
       
-      // Calculate premium
       let premium = 0;
       
       if (option.type.includes("KO") || option.type.includes("KI")) {
@@ -135,13 +127,10 @@ const HedgeCalculator = () => {
       return { ...option, premium };
     });
     
-    // Calculate total premium
     const totalPremium = optionsWithPremiums.reduce((sum, option) => sum + (option.premium || 0), 0);
     
-    // Generate payoff data
     const payoffData = calculateCustomPayoffData(optionsWithPremiums, params);
     
-    // Set results
     setResults({
       options: optionsWithPremiums,
       totalPremium,
@@ -149,7 +138,6 @@ const HedgeCalculator = () => {
     });
   };
 
-  // Calculate custom strategy payoff data
   const calculateCustomPayoffData = (options: any[], params: any) => {
     const spots = [];
     const minSpot = params.spot * 0.7;
@@ -166,30 +154,38 @@ const HedgeCalculator = () => {
         'Initial Spot': parseFloat(params.spot.toFixed(4))
       };
       
-      // Add option strikes and barriers to the data point
-      options.forEach((option, index) => {
-        const actualStrike = option.strikeType === "percentage" 
-          ? params.spot * (option.strike / 100) 
-          : option.strike;
+      if (spots.length === 0) {
+        options.forEach((option, index) => {
+          const actualStrike = option.strikeType === "percentage" 
+            ? params.spot * (option.strike / 100) 
+            : option.strike;
+            
+          dataPoint[`Option ${index+1} Strike`] = parseFloat(actualStrike.toFixed(4));
           
-        dataPoint[`Option ${index+1} Strike`] = parseFloat(actualStrike.toFixed(4));
-        
-        if (option.upperBarrier) {
-          const actualBarrier = option.upperBarrierType === "percentage" 
-            ? params.spot * (option.upperBarrier / 100) 
-            : option.upperBarrier;
-            
-          dataPoint[`Option ${index+1} Upper Barrier`] = parseFloat(actualBarrier.toFixed(4));
-        }
-        
-        if (option.lowerBarrier) {
-          const actualBarrier = option.lowerBarrierType === "percentage" 
-            ? params.spot * (option.lowerBarrier / 100) 
-            : option.lowerBarrier;
-            
-          dataPoint[`Option ${index+1} Lower Barrier`] = parseFloat(actualBarrier.toFixed(4));
-        }
-      });
+          if (option.upperBarrier) {
+            const actualBarrier = option.upperBarrierType === "percentage" 
+              ? params.spot * (option.upperBarrier / 100) 
+              : option.upperBarrier;
+              
+            dataPoint[`Option ${index+1} Upper Barrier`] = parseFloat(actualBarrier.toFixed(4));
+          }
+          
+          if (option.lowerBarrier) {
+            const actualBarrier = option.lowerBarrierType === "percentage" 
+              ? params.spot * (option.lowerBarrier / 100) 
+              : option.lowerBarrier;
+              
+            dataPoint[`Option ${index+1} Lower Barrier`] = parseFloat(actualBarrier.toFixed(4));
+          }
+        });
+      } else {
+        const firstDataPoint = spots[0];
+        Object.keys(firstDataPoint).forEach(key => {
+          if (key.includes('Strike') || key.includes('Barrier')) {
+            dataPoint[key] = firstDataPoint[key];
+          }
+        });
+      }
       
       spots.push(dataPoint);
     }
@@ -197,12 +193,10 @@ const HedgeCalculator = () => {
     return spots;
   };
 
-  // Calculate results when parameters change
   useEffect(() => {
     if (!selectedStrategy) return;
     
     if (selectedStrategy === "custom") {
-      // For custom strategy, we calculate in handleCustomStrategyChange
       if (customOptions.length > 0) {
         handleCustomStrategyChange(customOptions);
       }
@@ -220,7 +214,6 @@ const HedgeCalculator = () => {
     }
   }, [params, selectedStrategy, customOptions.length === 0]);
 
-  // Loading state
   if (!results) return (
     <div className="h-screen flex items-center justify-center">
       <div className="animate-pulse flex flex-col items-center">
@@ -295,7 +288,6 @@ const HedgeCalculator = () => {
                   </label>
                 </div>
 
-                {/* Strategy-specific inputs */}
                 {(selectedStrategy === "collar" || selectedStrategy === "strangle" || 
                   selectedStrategy === "call" || selectedStrategy === "seagull" || 
                   selectedStrategy === "callKO" || selectedStrategy === "callPutKI_KO") && (
@@ -345,7 +337,6 @@ const HedgeCalculator = () => {
                   </div>
                 )}
 
-                {/* Barrier inputs for KO/KI strategies */}
                 {(selectedStrategy === "callKO" || selectedStrategy === "callPutKI_KO") && (
                   <div>
                     <label className="block text-sm font-medium mb-1">
@@ -478,3 +469,4 @@ const HedgeCalculator = () => {
 };
 
 export default HedgeCalculator;
+
