@@ -1,3 +1,4 @@
+
 import React from "react";
 import { OPTION_TYPES, STRIKE_TYPES } from "@/utils/forexData";
 import { Trash } from "lucide-react";
@@ -55,7 +56,7 @@ const CustomStrategyOption: React.FC<CustomStrategyOptionProps> = ({
   return (
     <div className="bg-muted/30 p-4 rounded-lg mb-4">
       <div className="grid grid-cols-5 gap-4">
-        {/* Type d'option */}
+        {/* Option Type */}
         <div>
           <label className="block text-sm font-medium mb-1">Type</label>
           <select
@@ -95,15 +96,15 @@ const CustomStrategyOption: React.FC<CustomStrategyOptionProps> = ({
             </select>
           </div>
           <div className="text-xs text-muted-foreground mt-1">
-            Valeur réelle: {calculateActualValue(optionData.strike, optionData.strikeType).toFixed(4)}
+            Actual value: {calculateActualValue(optionData.strike, optionData.strikeType).toFixed(4)}
           </div>
         </div>
 
-        {/* Barrière supérieure (pour KO, KI, etc.) */}
+        {/* Upper Barrier (for KO, KI, etc.) */}
         {needsBarrier && (
           <div>
             <label className="block text-sm font-medium mb-1">
-              {needsDoubleBarrier ? "Barrière Haute" : "Barrière"}
+              {needsDoubleBarrier ? "Upper Barrier" : "Barrier"}
             </label>
             <div className="flex space-x-2">
               <input
@@ -128,7 +129,7 @@ const CustomStrategyOption: React.FC<CustomStrategyOptionProps> = ({
               </select>
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              Valeur réelle: {calculateActualValue(
+              Actual value: {calculateActualValue(
                 optionData.upperBarrier || (optionData.type.includes("call") ? 110 : 90),
                 optionData.upperBarrierType || "percentage"
               ).toFixed(4)}
@@ -136,10 +137,10 @@ const CustomStrategyOption: React.FC<CustomStrategyOptionProps> = ({
           </div>
         )}
 
-        {/* Barrière inférieure (pour DKO, DKI) */}
+        {/* Lower Barrier (for DKO, DKI) */}
         {needsDoubleBarrier && (
           <div>
-            <label className="block text-sm font-medium mb-1">Barrière Basse</label>
+            <label className="block text-sm font-medium mb-1">Lower Barrier</label>
             <div className="flex space-x-2">
               <input
                 type="number"
@@ -163,7 +164,7 @@ const CustomStrategyOption: React.FC<CustomStrategyOptionProps> = ({
               </select>
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              Valeur réelle: {calculateActualValue(
+              Actual value: {calculateActualValue(
                 optionData.lowerBarrier || (optionData.type.includes("call") ? 90 : 110),
                 optionData.lowerBarrierType || "percentage"
               ).toFixed(4)}
@@ -171,9 +172,9 @@ const CustomStrategyOption: React.FC<CustomStrategyOptionProps> = ({
           </div>
         )}
 
-        {/* Volatilité */}
+        {/* Volatility */}
         <div>
-          <label className="block text-sm font-medium mb-1">Volatilité (%)</label>
+          <label className="block text-sm font-medium mb-1">Volatility (%)</label>
           <input
             type="number"
             className="input-field w-full"
@@ -185,9 +186,9 @@ const CustomStrategyOption: React.FC<CustomStrategyOptionProps> = ({
           />
         </div>
 
-        {/* Quantité */}
+        {/* Quantity */}
         <div className="relative">
-          <label className="block text-sm font-medium mb-1">Quantité (%)</label>
+          <label className="block text-sm font-medium mb-1">Quantity (%)</label>
           <div className="flex items-center">
             <input
               type="number"
@@ -201,7 +202,7 @@ const CustomStrategyOption: React.FC<CustomStrategyOptionProps> = ({
             <button
               onClick={() => onDelete(index)}
               className="absolute right-0 top-8 p-2 text-destructive hover:text-destructive/80 transition-colors"
-              title="Supprimer cette option"
+              title="Delete this option"
             >
               <Trash size={20} />
             </button>

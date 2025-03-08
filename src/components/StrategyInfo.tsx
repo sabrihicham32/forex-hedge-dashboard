@@ -7,9 +7,16 @@ interface StrategyInfoProps {
   selectedStrategy: string;
   results: any;
   params: any;
+  riskReward?: {
+    bestCase: number;
+    worstCase: number;
+    bestCaseSpot: number;
+    worstCaseSpot: number;
+    riskRewardRatio: number;
+  };
 }
 
-const StrategyInfo = ({ selectedStrategy, results, params }: StrategyInfoProps) => {
+const StrategyInfo = ({ selectedStrategy, results, params, riskReward }: StrategyInfoProps) => {
   if (!results) return null;
 
   const formatNumber = (num: number | undefined) => {
@@ -22,11 +29,36 @@ const StrategyInfo = ({ selectedStrategy, results, params }: StrategyInfoProps) 
     return (num * 100).toFixed(2) + "%";
   };
 
+  const renderRiskRewardInfo = () => {
+    if (!riskReward) return null;
+    
+    return (
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+        <ValueDisplay
+          label="Best Case"
+          value={formatNumber(riskReward.bestCase)}
+          suffix={`at ${formatNumber(riskReward.bestCaseSpot)}`}
+          highlight
+        />
+        <ValueDisplay
+          label="Worst Case"
+          value={formatNumber(riskReward.worstCase)}
+          suffix={`at ${formatNumber(riskReward.worstCaseSpot)}`}
+        />
+        <ValueDisplay
+          label="Risk/Reward Ratio"
+          value={riskReward.riskRewardRatio.toFixed(2)}
+          highlight={riskReward.riskRewardRatio > 1}
+        />
+      </div>
+    );
+  };
+
   const renderCustomStrategyDetails = () => {
     if (!results.options || results.options.length === 0) {
       return (
         <div className="text-muted-foreground">
-          Aucune option ajoutée à la stratégie personnalisée.
+          No options added to the custom strategy.
         </div>
       );
     }
@@ -35,26 +67,28 @@ const StrategyInfo = ({ selectedStrategy, results, params }: StrategyInfoProps) 
       <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
           <ValueDisplay
-            label="Prime totale"
+            label="Total Premium"
             value={formatNumber(results.totalPremium)}
             suffix="% of notional"
             highlight
           />
           <ValueDisplay
-            label="Nombre d'options"
+            label="Number of Options"
             value={results.options.length.toString()}
           />
         </div>
 
+        {renderRiskRewardInfo()}
+
         <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg text-sm">
           <p>
-            Cette stratégie personnalisée comprend {results.options.length} option(s) avec une prime totale de{" "}
+            This custom strategy includes {results.options.length} option(s) with a total premium of{" "}
             <strong>{formatNumber(results.totalPremium)}</strong>.
           </p>
         </div>
 
         <div className="mt-4">
-          <h4 className="font-medium mb-2">Détails des options:</h4>
+          <h4 className="font-medium mb-2">Option Details:</h4>
           {results.options.map((option: any, index: number) => {
             const optionType = OPTION_TYPES[option.type as keyof typeof OPTION_TYPES] || option.type;
             const strikeValue = option.strikeType === "percentage" 
@@ -87,26 +121,26 @@ const StrategyInfo = ({ selectedStrategy, results, params }: StrategyInfoProps) 
                     <div>
                       <span className="font-medium">
                         {option.type.includes("DKO") || option.type.includes("DKI") 
-                          ? "Barrière haute:" 
-                          : "Barrière:"}
+                          ? "Upper Barrier:" 
+                          : "Barrier:"}
                       </span> {upperBarrierValue}
                     </div>
                   )}
                   
                   {lowerBarrierValue && (
                     <div>
-                      <span className="font-medium">Barrière basse:</span> {lowerBarrierValue}
+                      <span className="font-medium">Lower Barrier:</span> {lowerBarrierValue}
                     </div>
                   )}
                   
                   <div>
-                    <span className="font-medium">Volatilité:</span> {option.volatility}%
+                    <span className="font-medium">Volatility:</span> {option.volatility}%
                   </div>
                   <div>
-                    <span className="font-medium">Quantité:</span> {option.quantity}%
+                    <span className="font-medium">Quantity:</span> {option.quantity}%
                   </div>
                   <div>
-                    <span className="font-medium">Prime:</span> {formatNumber(option.premium)}
+                    <span className="font-medium">Premium:</span> {formatNumber(option.premium)}
                   </div>
                 </div>
               </div>
@@ -148,6 +182,9 @@ const StrategyInfo = ({ selectedStrategy, results, params }: StrategyInfoProps) 
                 suffix="% of notional"
               />
             </div>
+            
+            {renderRiskRewardInfo()}
+            
             <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg text-sm">
               <p>
                 This zero-cost collar protects against rates below{" "}
@@ -169,6 +206,9 @@ const StrategyInfo = ({ selectedStrategy, results, params }: StrategyInfoProps) 
                 highlight
               />
             </div>
+            
+            {renderRiskRewardInfo()}
+            
             <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg text-sm">
               <p>
                 The forward contract locks in the exchange rate at{" "}
@@ -210,6 +250,9 @@ const StrategyInfo = ({ selectedStrategy, results, params }: StrategyInfoProps) 
                 className="col-span-2"
               />
             </div>
+            
+            {renderRiskRewardInfo()}
+            
             <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg text-sm">
               <p>
                 This strangle provides protection against rates outside the range
@@ -246,6 +289,9 @@ const StrategyInfo = ({ selectedStrategy, results, params }: StrategyInfoProps) 
                 suffix="% of notional"
               />
             </div>
+            
+            {renderRiskRewardInfo()}
+            
             <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg text-sm">
               <p>
                 This straddle protects against volatility in either direction
@@ -272,6 +318,9 @@ const StrategyInfo = ({ selectedStrategy, results, params }: StrategyInfoProps) 
                 suffix="% of notional"
               />
             </div>
+            
+            {renderRiskRewardInfo()}
+            
             <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg text-sm">
               <p>
                 This put option provides downside protection below{" "}
@@ -297,6 +346,9 @@ const StrategyInfo = ({ selectedStrategy, results, params }: StrategyInfoProps) 
                 suffix="% of notional"
               />
             </div>
+            
+            {renderRiskRewardInfo()}
+            
             <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg text-sm">
               <p>
                 This call option provides upside protection above{" "}
@@ -330,6 +382,9 @@ const StrategyInfo = ({ selectedStrategy, results, params }: StrategyInfoProps) 
                 suffix="% of notional"
               />
             </div>
+            
+            {renderRiskRewardInfo()}
+            
             <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg text-sm">
               <p>
                 This seagull strategy provides protection between{" "}
@@ -363,6 +418,9 @@ const StrategyInfo = ({ selectedStrategy, results, params }: StrategyInfoProps) 
                 suffix="% of notional"
               />
             </div>
+            
+            {renderRiskRewardInfo()}
+            
             <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg text-sm">
               <p>
                 This Knock-Out Call option provides protection above{" "}
@@ -395,6 +453,9 @@ const StrategyInfo = ({ selectedStrategy, results, params }: StrategyInfoProps) 
                 suffix="% of notional"
               />
             </div>
+            
+            {renderRiskRewardInfo()}
+            
             <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg text-sm">
               <p>
                 This Knock-In Put option provides protection below{" "}
@@ -446,6 +507,9 @@ const StrategyInfo = ({ selectedStrategy, results, params }: StrategyInfoProps) 
                 className="col-span-2"
               />
             </div>
+            
+            {renderRiskRewardInfo()}
+            
             <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg text-sm">
               <p>
                 This combined strategy uses a Knock-Out Call with barrier at{" "}
@@ -467,7 +531,7 @@ const StrategyInfo = ({ selectedStrategy, results, params }: StrategyInfoProps) 
   return (
     <HoverCard>
       <Heading level={3}>
-        {STRATEGIES[selectedStrategy as keyof typeof STRATEGIES]?.name || "Stratégie"} - Results
+        {STRATEGIES[selectedStrategy as keyof typeof STRATEGIES]?.name || "Strategy"} - Results
       </Heading>
       {renderStrategyDetails()}
     </HoverCard>

@@ -17,6 +17,13 @@ interface PayoffChartProps {
   data: any[];
   selectedStrategy: string;
   spot: number;
+  riskReward?: {
+    bestCase: number;
+    worstCase: number;
+    bestCaseSpot: number;
+    worstCaseSpot: number;
+    riskRewardRatio: number;
+  };
 }
 
 // Custom tooltip component for better styling
@@ -37,7 +44,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-const PayoffChart = ({ data, selectedStrategy, spot }: PayoffChartProps) => {
+const PayoffChart = ({ data, selectedStrategy, spot, riskReward }: PayoffChartProps) => {
   // Configure lines based on strategy
   const getChartConfig = () => {
     // Base lines that are shown for all strategies
@@ -78,6 +85,38 @@ const PayoffChart = ({ data, selectedStrategy, spot }: PayoffChartProps) => {
         }}
       />,
     ];
+
+    // Add best/worst case reference lines if available
+    if (riskReward) {
+      referenceLines.push(
+        <ReferenceLine
+          key="best-case"
+          x={riskReward.bestCaseSpot}
+          stroke="#10B981"
+          strokeWidth={1}
+          strokeDasharray="3 3"
+          label={{
+            value: `Best Case: ${riskReward.bestCase.toFixed(4)}`,
+            position: "insideTop",
+            fill: "#10B981",
+            fontSize: 12,
+          }}
+        />,
+        <ReferenceLine
+          key="worst-case"
+          x={riskReward.worstCaseSpot}
+          stroke="#EF4444"
+          strokeWidth={1}
+          strokeDasharray="3 3"
+          label={{
+            value: `Worst Case: ${riskReward.worstCase.toFixed(4)}`,
+            position: "insideBottom",
+            fill: "#EF4444",
+            fontSize: 12,
+          }}
+        />
+      );
+    }
 
     // Add strategy-specific lines
     if (selectedStrategy === "custom" && data.length > 0) {
@@ -224,6 +263,22 @@ const PayoffChart = ({ data, selectedStrategy, spot }: PayoffChartProps) => {
         <p className="text-sm text-muted-foreground">
           Visualize how the {selectedStrategy} strategy performs across different exchange rates
         </p>
+        {riskReward && (
+          <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+            <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded">
+              <span className="font-medium">Best Case:</span>{" "}
+              {riskReward.bestCase.toFixed(4)} at {riskReward.bestCaseSpot.toFixed(4)}
+            </div>
+            <div className="bg-red-100 dark:bg-red-900/30 p-2 rounded">
+              <span className="font-medium">Worst Case:</span>{" "}
+              {riskReward.worstCase.toFixed(4)} at {riskReward.worstCaseSpot.toFixed(4)}
+            </div>
+            <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded col-span-2">
+              <span className="font-medium">Risk/Reward Ratio:</span>{" "}
+              {riskReward.riskRewardRatio.toFixed(2)}
+            </div>
+          </div>
+        )}
       </div>
       <div className="p-4" style={{ height: "400px" }}>
         <ResponsiveContainer width="100%" height="100%">

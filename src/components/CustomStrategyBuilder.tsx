@@ -84,7 +84,7 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ spot, onS
             : option.lowerBarrier)
         : undefined;
       
-      // Calculate premium based on option type (vanilla or barrier)
+      // Calculate premium based on option type
       const premium = calculateOptionPremium(option, spot, params);
       
       return { 
@@ -110,11 +110,11 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ spot, onS
   return (
     <>
       <GlassContainer className="mb-8">
-        <h3 className="font-bold text-xl mb-4">Paramètres Globaux</h3>
+        <h3 className="font-bold text-xl mb-4">Global Parameters</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">
-              Maturité (années)
+              Maturity (years)
               <input
                 type="number"
                 name="maturity"
@@ -127,7 +127,7 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ spot, onS
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">
-              Taux devise 1 (%)
+              Currency 1 Rate (%)
               <input
                 type="number"
                 name="r1"
@@ -147,7 +147,7 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ spot, onS
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">
-              Taux devise 2 (%)
+              Currency 2 Rate (%)
               <input
                 type="number"
                 name="r2"
@@ -167,7 +167,7 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ spot, onS
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">
-              Montant Notionnel
+              Notional Amount
               <input
                 type="number"
                 name="notional"
@@ -183,12 +183,12 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ spot, onS
 
       <div className="mt-6 p-4 bg-background/50 rounded-lg border border-border">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="font-bold text-xl">Composants de la Stratégie</h3>
+          <h3 className="font-bold text-xl">Strategy Components</h3>
           <button
             onClick={handleAddOption}
             className="flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
           >
-            <Plus size={18} className="mr-2" /> Ajouter Option
+            <Plus size={18} className="mr-2" /> Add Option
           </button>
         </div>
 
@@ -205,7 +205,7 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ spot, onS
 
         {options.length === 0 && (
           <div className="text-center py-10 text-muted-foreground">
-            Aucune option ajoutée. Cliquez sur "Ajouter Option" pour commencer à construire votre stratégie.
+            No options added. Click "Add Option" to start building your strategy.
           </div>
         )}
       </div>

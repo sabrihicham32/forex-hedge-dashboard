@@ -14,9 +14,19 @@ import type { OptionComponent } from "./CustomStrategyOption";
 import { 
   calculateCustomStrategyPayoff, 
   calculateBarrierOptionPayoff,
-  calculateOptionPremium
+  calculateOptionPremium,
+  calculateRiskReward
 } from "@/utils/barrierOptionCalculations";
 import { Section, GlassContainer, Grid, Heading } from "@/components/ui/layout";
+import { Plus, Edit2 } from "lucide-react";
+
+interface CustomCurrencyPair {
+  name: string;
+  symbol: string;
+  spot: number;
+  vol: number;
+  defaultStrike: number;
+}
 
 const HedgeCalculator = () => {
   const [selectedPair, setSelectedPair] = useState("EUR/USD");
@@ -43,20 +53,47 @@ const HedgeCalculator = () => {
     premium: 0,
     notional: 1000000,
   });
+  const [riskReward, setRiskReward] = useState<any>(null);
+  
+  // For custom currency pairs
+  const [customPairs, setCustomPairs] = useState<Record<string, CustomCurrencyPair>>({});
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [newCurrency, setNewCurrency] = useState({
+    name: "",
+    symbol: "",
+    spot: 1.0,
+    vol: 10,
+  });
 
   const handlePairChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const pair = e.target.value;
     setSelectedPair(pair);
-    setParams((prev) => ({
-      ...prev,
-      spot: FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].spot,
-      strikeUpper: FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].defaultStrike,
-      strikeLower: FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].defaultStrike * 0.95,
-      strikeMid: FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].spot,
-      barrierUpper: FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].defaultStrike * 1.05,
-      barrierLower: FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].defaultStrike * 0.9,
-      vol: FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].vol,
-    }));
+
+    // Check if custom pair
+    if (pair.startsWith("custom_")) {
+      const customPair = customPairs[pair];
+      setParams((prev) => ({
+        ...prev,
+        spot: customPair.spot,
+        strikeUpper: customPair.defaultStrike,
+        strikeLower: customPair.defaultStrike * 0.95,
+        strikeMid: customPair.spot,
+        barrierUpper: customPair.defaultStrike * 1.05,
+        barrierLower: customPair.defaultStrike * 0.9,
+        vol: customPair.vol / 100,
+      }));
+    } else {
+      setParams((prev) => ({
+        ...prev,
+        spot: FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].spot,
+        strikeUpper: FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].defaultStrike,
+        strikeLower: FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].defaultStrike * 0.95,
+        strikeMid: FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].spot,
+        barrierUpper: FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].defaultStrike * 1.05,
+        barrierLower: FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].defaultStrike * 0.9,
+        vol: FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].vol,
+      }));
+    }
   };
 
   const handleStrategyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -119,6 +156,10 @@ const HedgeCalculator = () => {
     
     const payoffData = calculateCustomPayoffData(optionsWithPremiums, params, globalParams);
     
+    // Calculate risk/reward metrics
+    const riskRewardMetrics = calculateRiskReward(optionsWithPremiums, params.spot, globalParams);
+    setRiskReward(riskRewardMetrics);
+    
     setResults({
       options: optionsWithPremiums,
       totalPremium,
@@ -168,6 +209,48 @@ const HedgeCalculator = () => {
     
     return spots;
   };
+  
+  const handleAddCustomCurrency = () => {
+    if (!newCurrency.symbol || !newCurrency.name) {
+      alert("Please provide a symbol and name for the custom currency pair");
+      return;
+    }
+    
+    const customId = `custom_${Date.now()}`;
+    const newPair: CustomCurrencyPair = {
+      ...newCurrency,
+      defaultStrike: newCurrency.spot * 1.05,
+    };
+    
+    setCustomPairs({
+      ...customPairs,
+      [customId]: newPair
+    });
+    
+    // Reset form and close modal
+    setNewCurrency({
+      name: "",
+      symbol: "",
+      spot: 1.0,
+      vol: 10,
+    });
+    setShowCurrencyModal(false);
+    
+    // Select the new pair
+    setSelectedPair(customId);
+    
+    // Update params with the new pair
+    setParams((prev) => ({
+      ...prev,
+      spot: newPair.spot,
+      strikeUpper: newPair.defaultStrike,
+      strikeLower: newPair.defaultStrike * 0.95,
+      strikeMid: newPair.spot,
+      barrierUpper: newPair.defaultStrike * 1.05,
+      barrierLower: newPair.defaultStrike * 0.9,
+      vol: newPair.vol / 100,
+    }));
+  };
 
   useEffect(() => {
     if (!selectedStrategy) return;
@@ -183,6 +266,43 @@ const HedgeCalculator = () => {
     
     if (calculatedResults) {
       const payoffData = calculatePayoff(calculatedResults, selectedStrategy, params);
+      
+      // Calculate risk/reward
+      const minSpot = params.spot * 0.7;
+      const maxSpot = params.spot * 1.3;
+      const numSteps = 100;
+      const step = (maxSpot - minSpot) / numSteps;
+      
+      let bestCase = -Infinity;
+      let worstCase = Infinity;
+      let bestCaseSpot = params.spot;
+      let worstCaseSpot = params.spot;
+      
+      // Find best and worst case from payoff data
+      for (const point of payoffData) {
+        const payoff = point['Hedged Rate'] - point['Unhedged Rate'];
+        
+        if (payoff > bestCase) {
+          bestCase = payoff;
+          bestCaseSpot = point.spot;
+        }
+        
+        if (payoff < worstCase) {
+          worstCase = payoff;
+          worstCaseSpot = point.spot;
+        }
+      }
+      
+      const riskRewardRatio = worstCase !== 0 ? Math.abs(bestCase / worstCase) : Infinity;
+      
+      setRiskReward({
+        bestCase: bestCase,
+        worstCase: worstCase,
+        bestCaseSpot: bestCaseSpot,
+        worstCaseSpot: worstCaseSpot,
+        riskRewardRatio: riskRewardRatio
+      });
+      
       setResults({
         ...calculatedResults,
         payoffData,
@@ -199,6 +319,86 @@ const HedgeCalculator = () => {
     </div>
   );
 
+  // Currency pair modal
+  const CurrencyPairModal = () => (
+    showCurrencyModal && (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="bg-background rounded-lg shadow-lg max-w-md w-full p-6">
+          <h3 className="font-bold text-xl mb-4">Add Custom Currency Pair</h3>
+          
+          <div className="grid gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Symbol (e.g. EUR/USD)
+                <input
+                  type="text"
+                  value={newCurrency.symbol}
+                  onChange={(e) => setNewCurrency({...newCurrency, symbol: e.target.value})}
+                  className="input-field mt-1 w-full"
+                  placeholder="EUR/USD"
+                />
+              </label>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Name
+                <input
+                  type="text"
+                  value={newCurrency.name}
+                  onChange={(e) => setNewCurrency({...newCurrency, name: e.target.value})}
+                  className="input-field mt-1 w-full"
+                  placeholder="Euro / US Dollar"
+                />
+              </label>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Spot Rate
+                <input
+                  type="number"
+                  value={newCurrency.spot}
+                  onChange={(e) => setNewCurrency({...newCurrency, spot: parseFloat(e.target.value)})}
+                  step="0.01"
+                  className="input-field mt-1 w-full"
+                />
+              </label>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Volatility (%)
+                <input
+                  type="number"
+                  value={newCurrency.vol}
+                  onChange={(e) => setNewCurrency({...newCurrency, vol: parseFloat(e.target.value)})}
+                  step="0.1"
+                  className="input-field mt-1 w-full"
+                />
+              </label>
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setShowCurrencyModal(false)}
+              className="px-4 py-2 bg-muted hover:bg-muted/80 rounded-md"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAddCustomCurrency}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  );
+
   return (
     <Section>
       <div className="max-w-6xl mx-auto">
@@ -206,26 +406,49 @@ const HedgeCalculator = () => {
           Foreign Exchange Hedging Dashboard
         </Heading>
         
+        {CurrencyPairModal()}
+        
         <GlassContainer className="mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block mb-2 font-medium">
                 Currency Pair
-                <select
-                  value={selectedPair}
-                  onChange={handlePairChange}
-                  className="input-field mt-1 w-full"
-                >
-                  {Object.entries(FOREX_PAIR_CATEGORIES).map(([category, pairs]) => (
-                    <optgroup key={category} label={category}>
-                      {pairs.map((pair) => (
-                        <option key={pair} value={pair}>
-                          {pair} - {FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedPair}
+                    onChange={handlePairChange}
+                    className="input-field mt-1 w-full"
+                  >
+                    {/* Standard Forex Pairs */}
+                    {Object.entries(FOREX_PAIR_CATEGORIES).map(([category, pairs]) => (
+                      <optgroup key={category} label={category}>
+                        {pairs.map((pair) => (
+                          <option key={pair} value={pair}>
+                            {pair} - {FOREX_PAIRS[pair as keyof typeof FOREX_PAIRS].name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                    
+                    {/* Custom pairs */}
+                    {Object.keys(customPairs).length > 0 && (
+                      <optgroup label="Custom Pairs">
+                        {Object.entries(customPairs).map(([key, pair]) => (
+                          <option key={key} value={key}>
+                            {pair.symbol} - {pair.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+                  <button
+                    onClick={() => setShowCurrencyModal(true)}
+                    className="mt-1 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                    title="Add Currency Pair"
+                  >
+                    <Plus size={20} />
+                  </button>
+                </div>
               </label>
             </div>
             
@@ -378,7 +601,7 @@ const HedgeCalculator = () => {
 
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    {selectedPair.split("/")[0]} Rate (%)
+                    {selectedPair.includes("/") ? selectedPair.split("/")[0] : "Currency 1"} Rate (%)
                     <input
                       type="number"
                       value={params.r1 * 100}
@@ -391,7 +614,7 @@ const HedgeCalculator = () => {
 
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    {selectedPair.split("/")[1]} Rate (%)
+                    {selectedPair.includes("/") ? selectedPair.split("/")[1] : "Currency 2"} Rate (%)
                     <input
                       type="number"
                       value={params.r2 * 100}
@@ -429,8 +652,9 @@ const HedgeCalculator = () => {
         <Grid cols={1} className="mb-8">
           <StrategyInfo 
             selectedStrategy={selectedStrategy} 
-            results={results} 
+            results={results}
             params={params}
+            riskReward={riskReward}
           />
         </Grid>
 
@@ -438,6 +662,7 @@ const HedgeCalculator = () => {
           data={results.payoffData}
           selectedStrategy={selectedStrategy}
           spot={params.spot}
+          riskReward={riskReward}
         />
       </div>
     </Section>
