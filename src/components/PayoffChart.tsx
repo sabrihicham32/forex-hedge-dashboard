@@ -72,7 +72,7 @@ const PayoffChart = ({ data, selectedStrategy, spot }: PayoffChartProps) => {
         strokeWidth={1}
         label={{
           value: "Current Spot",
-          position: "insideTop", // Changed from "top" to "insideTop" to fix type error
+          position: "insideTop",
           fill: "#6B7280",
           fontSize: 12,
         }}
@@ -105,7 +105,7 @@ const PayoffChart = ({ data, selectedStrategy, spot }: PayoffChartProps) => {
         if (firstDataPoint[key]) {
           let color = "#047857"; // Default green for strikes
           let dashArray = "3 3";
-          let position = "insideTop"; // Changed from "top" to "insideTop"
+          let position: "insideTop" | "insideBottom" = "insideTop"; 
           
           if (key.includes('Upper Barrier')) {
             color = "#EF4444"; // Red for upper barriers
@@ -113,7 +113,7 @@ const PayoffChart = ({ data, selectedStrategy, spot }: PayoffChartProps) => {
           } else if (key.includes('Lower Barrier')) {
             color = "#10B981"; // Green for lower barriers
             dashArray = "5 5";
-            position = "insideBottom"; // Changed from "bottom" to "insideBottom"
+            position = "insideBottom";
           }
           
           referenceLines.push(
@@ -145,7 +145,7 @@ const PayoffChart = ({ data, selectedStrategy, spot }: PayoffChartProps) => {
             strokeDasharray="5 5"
             label={{
               value: "KO Barrier",
-              position: "insideTop", // Changed from "top" to "insideTop"
+              position: "insideTop",
               fill: "#EF4444",
               fontSize: 12,
             }}
@@ -164,7 +164,7 @@ const PayoffChart = ({ data, selectedStrategy, spot }: PayoffChartProps) => {
             strokeDasharray="5 5"
             label={{
               value: "KI Barrier",
-              position: "insideTop", // Changed from "top" to "insideTop"
+              position: "insideTop",
               fill: "#10B981",
               fontSize: 12,
             }}
@@ -183,7 +183,7 @@ const PayoffChart = ({ data, selectedStrategy, spot }: PayoffChartProps) => {
             strokeDasharray="5 5"
             label={{
               value: "Upper KO",
-              position: "insideTop", // Changed from "top" to "insideTop"
+              position: "insideTop",
               fill: "#EF4444",
               fontSize: 12,
             }}
@@ -201,7 +201,7 @@ const PayoffChart = ({ data, selectedStrategy, spot }: PayoffChartProps) => {
             strokeDasharray="5 5"
             label={{
               value: "Lower KI",
-              position: "insideBottom", // Changed from "bottom" to "insideBottom"
+              position: "insideBottom",
               fill: "#10B981",
               fontSize: 12,
             }}

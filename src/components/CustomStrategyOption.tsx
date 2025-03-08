@@ -1,4 +1,3 @@
-
 import React from "react";
 import { OPTION_TYPES, STRIKE_TYPES } from "@/utils/forexData";
 import { Trash } from "lucide-react";
@@ -21,6 +20,10 @@ export interface OptionComponent {
   lowerBarrierType?: "percentage" | "absolute";
   volatility: number;
   quantity: number;
+  premium?: number;
+  actualStrike?: number;
+  actualUpperBarrier?: number;
+  actualLowerBarrier?: number;
 }
 
 const CustomStrategyOption: React.FC<CustomStrategyOptionProps> = ({

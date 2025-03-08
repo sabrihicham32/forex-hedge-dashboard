@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { 
   calculateStrategyResults, 
@@ -100,10 +101,10 @@ const HedgeCalculator = () => {
             : option.lowerBarrier)
         : undefined;
       
-      let premium = option.premium;
-      if (premium === undefined) {
-        premium = calculateOptionPremium(option, params.spot, globalParams);
-      }
+      // Use existing premium if available, otherwise calculate it
+      const premium = option.premium !== undefined 
+        ? option.premium 
+        : calculateOptionPremium(option, params.spot, globalParams);
       
       return { 
         ...option, 
