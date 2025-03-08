@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { 
   calculateStrategyResults, 
@@ -12,7 +13,6 @@ import CustomStrategyBuilder from "./CustomStrategyBuilder";
 import type { OptionComponent } from "./CustomStrategyOption";
 import { 
   calculateCustomStrategyPayoff, 
-  calculateBarrierOptionPayoff,
   calculateOptionPremium,
   calculateRiskReward
 } from "@/utils/barrierOptionCalculations";
