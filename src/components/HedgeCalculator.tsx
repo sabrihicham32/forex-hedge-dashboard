@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { 
   calculateStrategyResults, 
@@ -55,7 +54,6 @@ const HedgeCalculator = () => {
   });
   const [riskReward, setRiskReward] = useState<any>(null);
   
-  // For custom currency pairs
   const [customPairs, setCustomPairs] = useState<Record<string, CustomCurrencyPair>>({});
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [newCurrency, setNewCurrency] = useState({
@@ -69,7 +67,6 @@ const HedgeCalculator = () => {
     const pair = e.target.value;
     setSelectedPair(pair);
 
-    // Check if custom pair
     if (pair.startsWith("custom_")) {
       const customPair = customPairs[pair];
       setParams((prev) => ({
@@ -138,7 +135,6 @@ const HedgeCalculator = () => {
             : option.lowerBarrier)
         : undefined;
       
-      // Use existing premium if available, otherwise calculate it
       const premium = option.premium !== undefined 
         ? option.premium 
         : calculateOptionPremium(option, params.spot, globalParams);
@@ -156,7 +152,6 @@ const HedgeCalculator = () => {
     
     const payoffData = calculateCustomPayoffData(optionsWithPremiums, params, globalParams);
     
-    // Calculate risk/reward metrics
     const riskRewardMetrics = calculateRiskReward(optionsWithPremiums, params.spot, globalParams);
     setRiskReward(riskRewardMetrics);
     
@@ -179,7 +174,7 @@ const HedgeCalculator = () => {
       
       const payoff = calculateCustomStrategyPayoff(options, spot, params.spot, globalParams);
       
-      const hedgedRate = unhedgedRate + payoff;
+      const hedgedRate = spot + payoff;
       
       const dataPoint: any = {
         spot: parseFloat(spot.toFixed(4)),
@@ -227,7 +222,6 @@ const HedgeCalculator = () => {
       [customId]: newPair
     });
     
-    // Reset form and close modal
     setNewCurrency({
       name: "",
       symbol: "",
@@ -236,10 +230,8 @@ const HedgeCalculator = () => {
     });
     setShowCurrencyModal(false);
     
-    // Select the new pair
     setSelectedPair(customId);
     
-    // Update params with the new pair
     setParams((prev) => ({
       ...prev,
       spot: newPair.spot,
@@ -267,7 +259,6 @@ const HedgeCalculator = () => {
     if (calculatedResults) {
       const payoffData = calculatePayoff(calculatedResults, selectedStrategy, params);
       
-      // Calculate risk/reward
       const minSpot = params.spot * 0.7;
       const maxSpot = params.spot * 1.3;
       const numSteps = 100;
@@ -278,9 +269,11 @@ const HedgeCalculator = () => {
       let bestCaseSpot = params.spot;
       let worstCaseSpot = params.spot;
       
-      // Find best and worst case from payoff data
       for (const point of payoffData) {
-        const payoff = point['Hedged Rate'] - point['Unhedged Rate'];
+        const hedgedRate = point['Hedged Rate'];
+        const unhedgedRate = point['Unhedged Rate'];
+        
+        const payoff = hedgedRate - unhedgedRate;
         
         if (payoff > bestCase) {
           bestCase = payoff;
@@ -319,7 +312,6 @@ const HedgeCalculator = () => {
     </div>
   );
 
-  // Currency pair modal
   const CurrencyPairModal = () => (
     showCurrencyModal && (
       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -419,7 +411,6 @@ const HedgeCalculator = () => {
                     onChange={handlePairChange}
                     className="input-field mt-1 w-full"
                   >
-                    {/* Standard Forex Pairs */}
                     {Object.entries(FOREX_PAIR_CATEGORIES).map(([category, pairs]) => (
                       <optgroup key={category} label={category}>
                         {pairs.map((pair) => (
@@ -430,7 +421,6 @@ const HedgeCalculator = () => {
                       </optgroup>
                     ))}
                     
-                    {/* Custom pairs */}
                     {Object.keys(customPairs).length > 0 && (
                       <optgroup label="Custom Pairs">
                         {Object.entries(customPairs).map(([key, pair]) => (

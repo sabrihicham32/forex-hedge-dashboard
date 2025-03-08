@@ -79,7 +79,7 @@ const PayoffChart = ({ data, selectedStrategy, spot, riskReward }: PayoffChartPr
         strokeWidth={1}
         label={{
           value: "Current Spot",
-          position: "insideTop",
+          position: "insideTop" as "insideTop" | "insideBottom",
           fill: "#6B7280",
           fontSize: 12,
         }}
@@ -97,7 +97,7 @@ const PayoffChart = ({ data, selectedStrategy, spot, riskReward }: PayoffChartPr
           strokeDasharray="3 3"
           label={{
             value: `Best Case: ${riskReward.bestCase.toFixed(4)}`,
-            position: "insideTop",
+            position: "insideTop" as "insideTop" | "insideBottom",
             fill: "#10B981",
             fontSize: 12,
           }}
@@ -110,7 +110,7 @@ const PayoffChart = ({ data, selectedStrategy, spot, riskReward }: PayoffChartPr
           strokeDasharray="3 3"
           label={{
             value: `Worst Case: ${riskReward.worstCase.toFixed(4)}`,
-            position: "insideBottom",
+            position: "insideBottom" as "insideTop" | "insideBottom",
             fill: "#EF4444",
             fontSize: 12,
           }}
@@ -184,7 +184,7 @@ const PayoffChart = ({ data, selectedStrategy, spot, riskReward }: PayoffChartPr
             strokeDasharray="5 5"
             label={{
               value: "KO Barrier",
-              position: "insideTop",
+              position: "insideTop" as "insideTop" | "insideBottom",
               fill: "#EF4444",
               fontSize: 12,
             }}
@@ -203,7 +203,7 @@ const PayoffChart = ({ data, selectedStrategy, spot, riskReward }: PayoffChartPr
             strokeDasharray="5 5"
             label={{
               value: "KI Barrier",
-              position: "insideTop",
+              position: "insideTop" as "insideTop" | "insideBottom",
               fill: "#10B981",
               fontSize: 12,
             }}
@@ -222,7 +222,7 @@ const PayoffChart = ({ data, selectedStrategy, spot, riskReward }: PayoffChartPr
             strokeDasharray="5 5"
             label={{
               value: "Upper KO",
-              position: "insideTop",
+              position: "insideTop" as "insideTop" | "insideBottom",
               fill: "#EF4444",
               fontSize: 12,
             }}
@@ -240,7 +240,7 @@ const PayoffChart = ({ data, selectedStrategy, spot, riskReward }: PayoffChartPr
             strokeDasharray="5 5"
             label={{
               value: "Lower KI",
-              position: "insideBottom",
+              position: "insideBottom" as "insideTop" | "insideBottom",
               fill: "#10B981",
               fontSize: 12,
             }}
