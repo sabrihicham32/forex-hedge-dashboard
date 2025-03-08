@@ -1,3 +1,4 @@
+
 // Calculs pour les options avec barrière
 
 // Fonction pour calculer le prix d'une option avec barrière
@@ -171,6 +172,21 @@ export const calculateBarrierOptionPayoff = (
         isBarrierEffect = currentSpot < upperBarrier;
       }
     }
+  } else if (lowerBarrier) {
+    // Barrière simple basse (ajout de ce cas)
+    if (isCall) {
+      if (isReverse) {
+        isBarrierEffect = currentSpot > lowerBarrier;
+      } else {
+        isBarrierEffect = currentSpot < lowerBarrier;
+      }
+    } else { // Put
+      if (isReverse) {
+        isBarrierEffect = currentSpot < lowerBarrier;
+      } else {
+        isBarrierEffect = currentSpot > lowerBarrier;
+      }
+    }
   }
   
   // Calculer le payoff en fonction du type d'option et de l'état de la barrière
@@ -202,6 +218,13 @@ export const calculateBarrierOptionPayoff = (
       // La barrière n'a pas été touchée, l'option reste inactive
       payoff = 0;
     }
+  } else {
+    // Option vanille standard (sans barrière)
+    if (isCall) {
+      payoff = Math.max(0, currentSpot - strike);
+    } else {
+      payoff = Math.max(0, strike - currentSpot);
+    }
   }
   
   // Ajuster pour la prime et la quantité
@@ -220,34 +243,106 @@ export const calculateCustomStrategyPayoff = (
   options.forEach((option) => {
     const quantity = option.quantity / 100; // Convert percentage to decimal
     const strike = option.actualStrike;
-    let optionPayoff = 0;
     
     if (!strike) return; // Skip if no strike price defined
     
-    // Calculate payoff based on option type
-    switch (option.type) {
-      case "call":
-        // For call, the payoff is max(0, spot - strike) * quantity
+    let optionPayoff = 0;
+    
+    // Vérifier si c'est une option avec barrière
+    if (option.type.includes("KI") || option.type.includes("KO")) {
+      // Calculer le payoff pour les options avec barrière
+      optionPayoff = calculateBarrierOptionPayoff(
+        option.type,
+        spotPrice,
+        initialSpot,
+        strike,
+        option.actualUpperBarrier,
+        option.actualLowerBarrier,
+        option.premium || 0,
+        option.quantity
+      );
+    } else {
+      // Calculer le payoff pour les options vanille
+      if (option.type === "call") {
         if (spotPrice > strike) {
-          optionPayoff = (strike - spotPrice) * quantity;
+          optionPayoff = (strike - spotPrice) * quantity; // Perte pour l'acheteur = gain pour le vendeur
         }
-        break;
-        
-      case "put":
-        // For put, the payoff is max(0, strike - spot) * quantity
+      } else if (option.type === "put") {
         if (spotPrice < strike) {
           optionPayoff = (strike - spotPrice) * quantity;
         }
-        break;
-        
-      // Add handling for barrier options if needed
-        
-      default:
-        break;
+      }
+      
+      // Soustraire la prime payée (si définie)
+      if (option.premium) {
+        optionPayoff -= option.premium * quantity;
+      }
     }
     
     totalPayoff += optionPayoff;
   });
   
   return totalPayoff;
+};
+
+// Ajouter cette fonction pour calculer correctement la prime des options avec barrière
+export const calculateOptionPremium = (option: any, spot: number, globalParams: any) => {
+  const { type, strikeType, strike, volatility, upperBarrier, lowerBarrier, upperBarrierType, lowerBarrierType } = option;
+  
+  // Calculer le strike réel
+  const actualStrike = strikeType === "percentage" 
+    ? spot * (strike / 100) 
+    : strike;
+    
+  // Calculer les barrières réelles si elles existent
+  const actualUpperBarrier = upperBarrier 
+    ? (upperBarrierType === "percentage" 
+        ? spot * (upperBarrier / 100) 
+        : upperBarrier)
+    : undefined;
+    
+  const actualLowerBarrier = lowerBarrier 
+    ? (lowerBarrierType === "percentage" 
+        ? spot * (lowerBarrier / 100) 
+        : lowerBarrier)
+    : undefined;
+  
+  // Déterminer le type d'option (avec ou sans barrière)
+  if (type.includes("KI") || type.includes("KO")) {
+    // Option avec barrière
+    return calculateBarrierOptionPrice(
+      type,
+      spot,
+      actualStrike,
+      actualUpperBarrier,
+      actualLowerBarrier,
+      globalParams.maturity,
+      globalParams.r1,
+      globalParams.r2,
+      volatility / 100,
+      option.quantity
+    );
+  } else if (type === "call") {
+    // Option call vanille
+    return calculateCallPrice(
+      spot,
+      actualStrike,
+      globalParams.maturity,
+      globalParams.r1,
+      globalParams.r2,
+      volatility / 100
+    ) * (option.quantity / 100);
+  } else if (type === "put") {
+    // Option put vanille
+    return calculatePutPrice(
+      spot,
+      actualStrike,
+      globalParams.maturity,
+      globalParams.r1,
+      globalParams.r2,
+      volatility / 100
+    ) * (option.quantity / 100);
+  }
+  
+  return 0;
 };

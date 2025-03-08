@@ -10,7 +10,11 @@ import PayoffChart from "./PayoffChart";
 import StrategyInfo from "./StrategyInfo";
 import CustomStrategyBuilder from "./CustomStrategyBuilder";
 import type { OptionComponent } from "./CustomStrategyOption";
-import { calculateCustomStrategyPayoff } from "@/utils/barrierOptionCalculations";
+import { 
+  calculateCustomStrategyPayoff, 
+  calculateBarrierOptionPayoff,
+  calculateOptionPremium
+} from "@/utils/barrierOptionCalculations";
 import { Section, GlassContainer, Grid, Heading } from "@/components/ui/layout";
 
 const HedgeCalculator = () => {
@@ -96,26 +100,9 @@ const HedgeCalculator = () => {
             : option.lowerBarrier)
         : undefined;
       
-      let premium = 0;
-      
-      if (option.type === "call") {
-        premium = calculateCall(
-          params.spot, 
-          actualStrike, 
-          globalParams.maturity, 
-          globalParams.r1, 
-          globalParams.r2, 
-          option.volatility / 100
-        ) * (option.quantity / 100);
-      } else if (option.type === "put") {
-        premium = calculatePut(
-          params.spot, 
-          actualStrike, 
-          globalParams.maturity, 
-          globalParams.r1, 
-          globalParams.r2, 
-          option.volatility / 100
-        ) * (option.quantity / 100);
+      let premium = option.premium;
+      if (premium === undefined) {
+        premium = calculateOptionPremium(option, params.spot, globalParams);
       }
       
       return { 
@@ -457,4 +444,3 @@ const HedgeCalculator = () => {
 };
 
 export default HedgeCalculator;
-

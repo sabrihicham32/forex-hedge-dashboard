@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import CustomStrategyOption, { OptionComponent } from "./CustomStrategyOption";
 import { Plus } from "lucide-react";
 import { GlassContainer } from "@/components/ui/layout";
+import { calculateOptionPremium } from "@/utils/barrierOptionCalculations";
 
 interface CustomStrategyBuilderProps {
   spot: number;
@@ -36,21 +37,21 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ spot, onS
     };
     const updatedOptions = [...options, newOption];
     setOptions(updatedOptions);
-    onStrategyChange(updatedOptions, globalParams);
+    updateOptionsWithPremiums(updatedOptions);
   };
 
   const handleUpdateOption = (index: number, data: Partial<OptionComponent>) => {
     const updatedOptions = [...options];
     updatedOptions[index] = { ...updatedOptions[index], ...data };
     setOptions(updatedOptions);
-    onStrategyChange(updatedOptions, globalParams);
+    updateOptionsWithPremiums(updatedOptions);
   };
 
   const handleDeleteOption = (index: number) => {
     const updatedOptions = [...options];
     updatedOptions.splice(index, 1);
     setOptions(updatedOptions);
-    onStrategyChange(updatedOptions, globalParams);
+    updateOptionsWithPremiums(updatedOptions);
   };
 
   const handleGlobalParamChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,12 +62,50 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ spot, onS
       [name]: parsedValue
     };
     setGlobalParams(updatedParams);
-    onStrategyChange(options, updatedParams);
+    updateOptionsWithPremiums(options, updatedParams);
+  };
+
+  const updateOptionsWithPremiums = (currentOptions: OptionComponent[], params = globalParams) => {
+    // Calculate real strikes and premiums for all options
+    const optionsWithPremiums = currentOptions.map(option => {
+      const actualStrike = option.strikeType === "percentage" 
+        ? spot * (option.strike / 100) 
+        : option.strike;
+        
+      const actualUpperBarrier = option.upperBarrier 
+        ? (option.upperBarrierType === "percentage" 
+            ? spot * (option.upperBarrier / 100) 
+            : option.upperBarrier)
+        : undefined;
+        
+      const actualLowerBarrier = option.lowerBarrier 
+        ? (option.lowerBarrierType === "percentage" 
+            ? spot * (option.lowerBarrier / 100) 
+            : option.lowerBarrier)
+        : undefined;
+      
+      // Calculate premium based on option type (vanilla or barrier)
+      const premium = calculateOptionPremium(option, spot, params);
+      
+      return { 
+        ...option, 
+        premium,
+        actualStrike,
+        actualUpperBarrier,
+        actualLowerBarrier
+      };
+    });
+    
+    onStrategyChange(optionsWithPremiums, params);
   };
 
   useEffect(() => {
-    onStrategyChange(options, globalParams);
-  }, []);
+    updateOptionsWithPremiums(options);
+  }, [spot]); // Update when spot changes
+
+  useEffect(() => {
+    updateOptionsWithPremiums(options);
+  }, []); // Initial calculation
 
   return (
     <>
@@ -99,7 +138,7 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ spot, onS
                     r1: parseFloat(e.target.value) / 100
                   };
                   setGlobalParams(updatedParams);
-                  onStrategyChange(options, updatedParams);
+                  updateOptionsWithPremiums(options, updatedParams);
                 }}
                 step="0.1"
                 className="input-field mt-1 w-full"
@@ -119,7 +158,7 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ spot, onS
                     r2: parseFloat(e.target.value) / 100
                   };
                   setGlobalParams(updatedParams);
-                  onStrategyChange(options, updatedParams);
+                  updateOptionsWithPremiums(options, updatedParams);
                 }}
                 step="0.1"
                 className="input-field mt-1 w-full"
