@@ -1,3 +1,4 @@
+
 import { erf } from 'mathjs';
 
 // Black-Scholes option pricing for Forex
@@ -48,6 +49,7 @@ export const calculateBarrierOption = (type: string, S: number, K: number, B: nu
       barrierFactor = Math.max(0, Math.min(1, (B - S) / (0.1 * S)));
     }
   } else {
+    // No changes to put options as they are working correctly
     if (isKnockIn) {
       // Put KI - B is typically above spot
       barrierFactor = Math.max(0, Math.min(1, (B - S) / (0.1 * S)));
@@ -342,7 +344,14 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
         break;
       
       case 'call':
-        hedgedPayoff = Math.min(spot, results.callStrike);
+        // Correction pour le call vanille
+        if (spot > results.callStrike) {
+          // Au-dessus du strike - le call protection est active
+          hedgedPayoff = results.callStrike;
+        } else {
+          // En dessous du strike - pas de protection
+          hedgedPayoff = spot;
+        }
         // Adjust for premium cost
         hedgedPayoff -= results.callPrice;
         break;
@@ -366,14 +375,15 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
         break;
       
       case 'callKO':
+        // Correction pour le call KO
         if (spot > results.barrier) {
-          // Barrier knocked out - no protection
+          // Barrier knocked out - no protection (perdu la protection)
           hedgedPayoff = spot;
         } else if (spot > results.callStrike) {
-          // Call protection active
+          // Call protection active (en dessous de la barrière mais au-dessus du strike)
           hedgedPayoff = results.callStrike;
         } else {
-          // Below call strike
+          // Below call strike - pas de protection
           hedgedPayoff = spot;
         }
         // Adjust for premium cost
@@ -393,6 +403,7 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
         break;
       
       case 'callPutKI_KO':
+        // Correction pour la combinaison Call KO et Put KI
         if (spot > results.barrierUpper) {
           // Upper barrier knocked out call, no upper protection
           hedgedPayoff = spot;
@@ -400,10 +411,10 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
           // Lower barrier activated put
           hedgedPayoff = results.putStrike;
         } else if (spot > results.callStrike) {
-          // Call protection active
+          // Call protection active (en dessous de la barrière mais au-dessus du call strike)
           hedgedPayoff = results.callStrike;
         } else if (spot < results.putStrike) {
-          // Between barriers, put not activated
+          // Entre la barrière basse et le put strike
           hedgedPayoff = spot;
         } else {
           // Between strikes
