@@ -174,7 +174,7 @@ const HedgeCalculator = () => {
       
       const payoff = calculateCustomStrategyPayoff(options, spot, params.spot, globalParams);
       
-      const hedgedRate = spot + payoff;
+      const hedgedRate = unhedgedRate + payoff;
       
       const dataPoint: any = {
         spot: parseFloat(spot.toFixed(4)),
@@ -204,7 +204,7 @@ const HedgeCalculator = () => {
     
     return spots;
   };
-  
+
   const handleAddCustomCurrency = () => {
     if (!newCurrency.symbol || !newCurrency.name) {
       alert("Please provide a symbol and name for the custom currency pair");

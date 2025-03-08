@@ -70,7 +70,7 @@ const PayoffChart = ({ data, selectedStrategy, spot, riskReward }: PayoffChartPr
       />,
     ];
 
-    // Add reference lines based on strategy
+    // Add reference lines for current spot and best/worst case
     let referenceLines = [
       <ReferenceLine
         key="spot"
