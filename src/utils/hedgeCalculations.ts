@@ -1,4 +1,3 @@
-
 import { erf } from 'mathjs';
 
 // Black-Scholes option pricing for Forex
@@ -320,13 +319,19 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
         break;
       
       case 'strangle':
+        // Set a baseline payoff
+        hedgedPayoff = spot;
+        
+        // Apply put protection (if spot falls below put strike)
         if (spot < results.putStrike) {
-          hedgedPayoff = results.putStrike; // Put protection
-        } else if (spot > results.callStrike) {
-          hedgedPayoff = results.callStrike; // Call protection
-        } else {
-          hedgedPayoff = spot; // Between strikes, no protection
+          hedgedPayoff = results.putStrike;
         }
+        
+        // Apply call cap (if spot rises above call strike)
+        if (spot > results.callStrike) {
+          hedgedPayoff = results.callStrike;
+        }
+        
         // Adjust for premium cost
         hedgedPayoff -= results.totalPremium;
         break;
@@ -338,88 +343,105 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
         break;
       
       case 'put':
-        hedgedPayoff = Math.max(spot, results.putStrike);
+        // Start with the spot price
+        hedgedPayoff = spot;
+        
+        // Apply put protection if spot falls below put strike
+        if (spot < results.putStrike) {
+          hedgedPayoff = results.putStrike;
+        }
+        
         // Adjust for premium cost
         hedgedPayoff -= results.putPrice;
         break;
       
       case 'call':
-        // Correction pour le call vanille
+        // Start with the spot price
+        hedgedPayoff = spot;
+        
+        // Apply call cap if spot rises above call strike
         if (spot > results.callStrike) {
-          // Above strike - call protection is active (limits upside)
           hedgedPayoff = results.callStrike;
-        } else {
-          // Below strike - no protection (follows spot)
-          hedgedPayoff = spot;
         }
+        
         // Adjust for premium cost
         hedgedPayoff -= results.callPrice;
         break;
       
       case 'seagull':
+        // Start with the spot price
+        hedgedPayoff = spot;
+        
         if (spot < results.putSellStrike) {
-          // If very low, lose put protection
-          hedgedPayoff = spot + (results.putSellStrike - spot);
+          // Below the sold put strike - lose protection
+          hedgedPayoff = results.putSellStrike - (results.putSellStrike - spot);
         } else if (spot < results.putBuyStrike) {
-          // Protection from bought put
+          // Between sold put and bought put - have protection
           hedgedPayoff = results.putBuyStrike;
         } else if (spot > results.callSellStrike) {
-          // Limited by sold call
+          // Above sold call strike - capped upside
           hedgedPayoff = results.callSellStrike;
-        } else {
-          // Between put and call, no protection
-          hedgedPayoff = spot;
         }
+        
         // Adjust for net premium
         hedgedPayoff -= results.netPremium;
         break;
       
       case 'callKO':
-        // Correction pour le call KO
+        // Start with the spot price
+        hedgedPayoff = spot;
+        
+        // If spot is above barrier, the call is knocked out (no protection)
         if (spot > results.barrier) {
-          // Barrier knocked out - no protection (perdu la protection)
-          hedgedPayoff = spot;
-        } else if (spot > results.callStrike) {
-          // Call protection active (en dessous de la barrière mais au-dessus du strike)
+          // No change - hedgedPayoff stays at spot (unprotected)
+        } 
+        // If below barrier but above strike, apply call protection
+        else if (spot > results.callStrike) {
           hedgedPayoff = results.callStrike;
-        } else {
-          // Below call strike - pas de protection
-          hedgedPayoff = spot;
         }
+        
         // Adjust for premium cost
         hedgedPayoff -= results.callPrice;
         break;
       
       case 'putKI':
+        // Start with the spot price
+        hedgedPayoff = spot;
+        
+        // If spot is above barrier, the put is knocked in (has protection)
         if (spot > results.barrier) {
-          // Barrier activated put
-          hedgedPayoff = Math.max(spot, results.putStrike);
-        } else {
-          // Barrier not reached, no protection
-          hedgedPayoff = spot;
+          // Apply put protection if needed
+          if (spot < results.putStrike) {
+            hedgedPayoff = results.putStrike;
+          }
         }
+        
         // Adjust for premium cost
         hedgedPayoff -= results.putPrice;
         break;
       
       case 'callPutKI_KO':
-        // Correction pour la combinaison Call KO et Put KI
-        if (spot > results.barrierUpper) {
-          // Upper barrier knocked out call, no upper protection
-          hedgedPayoff = spot;
-        } else if (spot < results.barrierLower) {
-          // Lower barrier activated put
-          hedgedPayoff = results.putStrike;
-        } else if (spot > results.callStrike) {
-          // Call protection active (en dessous de la barrière mais au-dessus du call strike)
-          hedgedPayoff = results.callStrike;
-        } else if (spot < results.putStrike) {
-          // Entre la barrière basse et le put strike
-          hedgedPayoff = spot;
-        } else {
-          // Between strikes
-          hedgedPayoff = spot;
+        // Start with the spot price
+        hedgedPayoff = spot;
+        
+        // Call with KO Upper Barrier
+        if (spot <= results.barrierUpper) {
+          // Below upper barrier - call is active
+          if (spot > results.callStrike) {
+            // Above call strike - call protection applies
+            hedgedPayoff = results.callStrike;
+          }
         }
+        
+        // Put with KI Lower Barrier
+        if (spot <= results.barrierLower) {
+          // Below lower barrier - put is knocked in
+          if (spot < results.putStrike) {
+            // Below put strike - put protection applies
+            hedgedPayoff = results.putStrike;
+          }
+        }
+        
         // Adjust for premium cost
         hedgedPayoff -= results.totalPremium;
         break;

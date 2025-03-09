@@ -149,7 +149,7 @@ export const calculateOptionPayoff = (option: OptionComponent, spotAtExpiry: num
     return 0;
   }
   
-  // Calculate payoff - FIXED calculation for vanilla calls
+  // Calculate basic payoff (intrinsic value)
   let payoff = 0;
   
   if (option.type === "call") {

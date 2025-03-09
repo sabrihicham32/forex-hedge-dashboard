@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { 
   calculateStrategyResults, 
@@ -172,12 +171,27 @@ const HedgeCalculator = () => {
     for (let spot = minSpot; spot <= maxSpot; spot += step) {
       const unhedgedRate = spot;
       
-      // Calculate payoff from all options at this spot price
       const payoff = calculateCustomStrategyPayoff(options, spot, params.spot, globalParams);
       
-      // Updated formula: hedged rate is the unhedged rate plus the payoff from the strategy
-      // For a call option this means limiting upside when spot > strike
-      const hedgedRate = spot + payoff;
+      let hedgedRate = spot;
+      
+      options.forEach(option => {
+        if (option.type === "call" && option.actualStrike && spot > option.actualStrike) {
+          hedgedRate = option.actualStrike;
+        } else if (option.type === "put" && option.actualStrike && spot < option.actualStrike) {
+          hedgedRate = option.actualStrike;
+        }
+        
+        if (option.type === "call" && option.actualUpperBarrier && spot > option.actualUpperBarrier) {
+          hedgedRate = spot;
+        }
+        
+        if (option.type === "put" && option.actualUpperBarrier && spot < option.actualUpperBarrier) {
+          hedgedRate = spot;
+        }
+      });
+      
+      hedgedRate = hedgedRate - Math.abs(payoff);
       
       const dataPoint: any = {
         spot: parseFloat(spot.toFixed(4)),
@@ -186,7 +200,6 @@ const HedgeCalculator = () => {
         'Initial Spot': parseFloat(params.spot.toFixed(4))
       };
       
-      // Add strike and barrier reference lines for the first data point
       if (spots.length === 0) {
         options.forEach((option, index) => {
           if (option.actualStrike) {
