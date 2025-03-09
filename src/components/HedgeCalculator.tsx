@@ -170,63 +170,88 @@ const HedgeCalculator = () => {
     const step = (maxSpot - minSpot) / 100;
     
     for (let spot = minSpot; spot <= maxSpot; spot += step) {
-      // Calculate unhedged rate - this is just the spot rate
+      // Calculate unhedged rate (spot rate without hedging)
       const unhedgedRate = spot;
       
-      // Calculate payoff from the strategy
-      const payoff = calculateCustomStrategyPayoff(options, spot, params.spot, globalParams);
-      
-      // Initialize hedged rate with the spot rate
+      // Start with the spot rate for hedged rate (before applying option effects)
       let hedgedRate = spot;
       
-      // Apply option effects on the hedged rate
+      // For each option, apply their payoff effects on the hedged rate based on option type
       for (const option of options) {
-        // For call options, cap the upside at the strike price
-        if (option.type === "call" && option.actualStrike && spot > option.actualStrike) {
-          // Check if barriers are present and active
-          let barrierActive = true;
-          
-          // Check upper barrier (knock-out) for calls
-          if (option.actualUpperBarrier && spot > option.actualUpperBarrier) {
-            barrierActive = false; // Knocked out
+        // Check if barriers are active
+        let barrierActive = true;
+        
+        // For call options with upper barrier (KO) - option becomes inactive above barrier
+        if (option.type === "call" && option.actualUpperBarrier && spot > option.actualUpperBarrier) {
+          barrierActive = false;
+        }
+        
+        // For call options with lower barrier (KI) - option only active if above barrier
+        if (option.type === "call" && option.actualLowerBarrier && spot < option.actualLowerBarrier) {
+          barrierActive = false;
+        }
+        
+        // For put options with upper barrier (KI) - option only active if above barrier
+        if (option.type === "put" && option.actualUpperBarrier && spot < option.actualUpperBarrier) {
+          barrierActive = false;
+        }
+        
+        // For put options with lower barrier (KO) - option becomes inactive below barrier
+        if (option.type === "put" && option.actualLowerBarrier && spot < option.actualLowerBarrier) {
+          barrierActive = false;
+        }
+        
+        // Apply option payoff effects based on option type and if barriers are active
+        if (barrierActive) {
+          // For vanilla call options
+          if (option.type === "call" && option.actualStrike) {
+            // When spot is above strike, cap the rate at the strike price
+            if (spot > option.actualStrike) {
+              // Subtract the premium cost always
+              const premiumCost = option.premium || 0;
+              
+              // For a long call (positive quantity): cap the upside at the strike
+              if (option.quantity > 0) {
+                // The formula must reflect that:
+                // 1. Below strike, we pay the premium but get no benefit
+                // 2. Above strike, we're capped at strike price (plus/minus premium effect)
+                hedgedRate = option.actualStrike - premiumCost;
+              }
+              // For short calls, we'd have the opposite effect
+              else if (option.quantity < 0) {
+                // Short call loses money as spot increases above strike
+                hedgedRate = spot - Math.abs(option.quantity / 100) * (spot - option.actualStrike) + premiumCost;
+              }
+            } else {
+              // Below strike, we only pay the premium
+              hedgedRate -= option.premium || 0;
+            }
           }
-          
-          // Check lower barrier (knock-in) for calls
-          if (option.actualLowerBarrier && spot < option.actualLowerBarrier) {
-            barrierActive = false; // Not knocked in
+          // For vanilla put options
+          else if (option.type === "put" && option.actualStrike) {
+            // When spot is below strike, put a floor at the strike price
+            if (spot < option.actualStrike) {
+              // Subtract the premium cost always
+              const premiumCost = option.premium || 0;
+              
+              // For a long put (positive quantity): put a floor at the strike
+              if (option.quantity > 0) {
+                hedgedRate = option.actualStrike - premiumCost;
+              }
+              // For short puts, we'd have the opposite effect
+              else if (option.quantity < 0) {
+                hedgedRate = spot - Math.abs(option.quantity / 100) * (option.actualStrike - spot) + premiumCost;
+              }
+            } else {
+              // Above strike, we only pay the premium
+              hedgedRate -= option.premium || 0;
+            }
           }
-          
-          // Apply call option effect only if barriers allow
-          if (barrierActive) {
-            // For a call, we're protected against upside movement
-            hedgedRate = Math.min(hedgedRate, option.actualStrike);
-          }
-        } 
-        // For put options, put a floor at the strike price
-        else if (option.type === "put" && option.actualStrike && spot < option.actualStrike) {
-          // Check if barriers are present and active
-          let barrierActive = true;
-          
-          // Check upper barrier (knock-in) for puts
-          if (option.actualUpperBarrier && spot < option.actualUpperBarrier) {
-            barrierActive = false; // Not knocked in
-          }
-          
-          // Check lower barrier (knock-out) for puts
-          if (option.actualLowerBarrier && spot < option.actualLowerBarrier) {
-            barrierActive = false; // Knocked out
-          }
-          
-          // Apply put option effect only if barriers allow
-          if (barrierActive) {
-            // For a put, we're protected against downside movement
-            hedgedRate = Math.max(hedgedRate, option.actualStrike);
-          }
+        } else {
+          // Barrier condition makes option inactive, only premium cost applies
+          hedgedRate -= option.premium || 0;
         }
       }
-      
-      // Adjust the hedged rate by the payoff
-      hedgedRate = spot + payoff;
       
       // Create data point for the chart
       const dataPoint: any = {
