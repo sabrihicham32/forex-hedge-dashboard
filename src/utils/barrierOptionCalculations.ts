@@ -108,11 +108,14 @@ const adjustPremiumForBarriers = (option: OptionComponent, spot: number, premium
 
 // Calculate option payoff at expiration for a specific spot price
 export const calculateOptionPayoff = (option: OptionComponent, spotAtExpiry: number): number => {
-  const actualStrike = option.actualStrike || spotAtExpiry; // Fallback to spot if no actual strike
+  if (!option.actualStrike) {
+    return 0; // No valid strike, no payoff
+  }
   
   // First determine if barriers have been triggered
   let isActive = true;
   
+  // Check if KO or KI barriers are hit
   if (option.actualUpperBarrier) {
     if (option.type === "call" && !option.actualLowerBarrier) {
       // Call KO with upper barrier
@@ -126,7 +129,7 @@ export const calculateOptionPayoff = (option: OptionComponent, spotAtExpiry: num
   if (option.actualLowerBarrier) {
     if (option.type === "call" && !option.actualUpperBarrier) {
       // Call KI with lower barrier
-      isActive = spotAtExpiry <= option.actualLowerBarrier;
+      isActive = spotAtExpiry >= option.actualLowerBarrier;
     } else if (option.type === "put" && !option.actualUpperBarrier) {
       // Put KO with lower barrier
       isActive = spotAtExpiry >= option.actualLowerBarrier;
@@ -146,13 +149,15 @@ export const calculateOptionPayoff = (option: OptionComponent, spotAtExpiry: num
     return 0;
   }
   
-  // Calculate payoff
+  // Calculate payoff - FIXED calculation for vanilla calls
   let payoff = 0;
   
   if (option.type === "call") {
-    payoff = Math.max(0, spotAtExpiry - actualStrike);
+    // For a call, payoff is max(0, spot - strike)
+    payoff = Math.max(0, spotAtExpiry - option.actualStrike);
   } else if (option.type === "put") {
-    payoff = Math.max(0, actualStrike - spotAtExpiry);
+    // For a put, payoff is max(0, strike - spot)
+    payoff = Math.max(0, option.actualStrike - spotAtExpiry);
   }
   
   // Apply quantity (as percentage)

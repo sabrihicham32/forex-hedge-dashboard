@@ -346,10 +346,10 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
       case 'call':
         // Correction pour le call vanille
         if (spot > results.callStrike) {
-          // Au-dessus du strike - le call protection est active
+          // Above strike - call protection is active (limits upside)
           hedgedPayoff = results.callStrike;
         } else {
-          // En dessous du strike - pas de protection
+          // Below strike - no protection (follows spot)
           hedgedPayoff = spot;
         }
         // Adjust for premium cost
