@@ -106,80 +106,79 @@ const adjustPremiumForBarriers = (option: OptionComponent, spot: number, premium
   return premium * adjustmentFactor;
 };
 
-// Calculate option payoff at expiration for a specific spot price
+// Check if a barrier option is active at a specific spot price
+export const isBarrierActive = (option: OptionComponent, spotPrice: number): boolean => {
+  // If no barriers, option is active
+  if (!option.actualUpperBarrier && !option.actualLowerBarrier) {
+    return true;
+  }
+  
+  // Handle Call options with barriers
+  if (option.type === "call") {
+    // Call with upper barrier (KO) - option is inactive if spot exceeds barrier
+    if (option.actualUpperBarrier && !option.actualLowerBarrier) {
+      return spotPrice <= option.actualUpperBarrier;
+    }
+    // Call with lower barrier (KI) - option is active only if spot is above barrier
+    else if (option.actualLowerBarrier && !option.actualUpperBarrier) {
+      return spotPrice >= option.actualLowerBarrier;
+    }
+  } 
+  // Handle Put options with barriers
+  else if (option.type === "put") {
+    // Put with upper barrier (KI) - option is active only if spot is above barrier
+    if (option.actualUpperBarrier && !option.actualLowerBarrier) {
+      return spotPrice >= option.actualUpperBarrier;
+    }
+    // Put with lower barrier (KO) - option is inactive if spot is below barrier
+    else if (option.actualLowerBarrier && !option.actualUpperBarrier) {
+      return spotPrice >= option.actualLowerBarrier;
+    }
+  }
+  
+  // For double barriers (both upper and lower)
+  if (option.actualUpperBarrier && option.actualLowerBarrier) {
+    return spotPrice >= option.actualLowerBarrier && spotPrice <= option.actualUpperBarrier;
+  }
+  
+  return true;
+};
+
+// Calculate payoff for a single option at a specific spot price
 export const calculateOptionPayoff = (option: OptionComponent, spotAtExpiry: number): number => {
   if (!option.actualStrike) {
     return 0; // No valid strike, no payoff
   }
   
-  // First determine if barriers have been triggered
-  let isActive = true;
+  // Check if the option is active based on its barriers
+  const active = isBarrierActive(option, spotAtExpiry);
   
-  // Check if KO or KI barriers are hit
-  if (option.actualUpperBarrier) {
-    if (option.type === "call" && !option.actualLowerBarrier) {
-      // Call KO with upper barrier
-      isActive = spotAtExpiry <= option.actualUpperBarrier;
-    } else if (option.type === "put" && !option.actualLowerBarrier) {
-      // Put KI with upper barrier
-      isActive = spotAtExpiry >= option.actualUpperBarrier;
-    }
+  if (!active) {
+    return -1 * (option.premium || 0); // Option is knocked out or not knocked in, only premium is lost
   }
   
-  if (option.actualLowerBarrier) {
-    if (option.type === "call" && !option.actualUpperBarrier) {
-      // Call KI with lower barrier
-      isActive = spotAtExpiry >= option.actualLowerBarrier;
-    } else if (option.type === "put" && !option.actualUpperBarrier) {
-      // Put KO with lower barrier
-      isActive = spotAtExpiry >= option.actualLowerBarrier;
-    }
-  }
-  
-  // Double barrier
-  if (option.actualUpperBarrier && option.actualLowerBarrier) {
-    if (option.type === "call") {
-      isActive = spotAtExpiry <= option.actualUpperBarrier && spotAtExpiry >= option.actualLowerBarrier;
-    } else {
-      isActive = spotAtExpiry >= option.actualLowerBarrier && spotAtExpiry <= option.actualUpperBarrier;
-    }
-  }
-  
-  if (!isActive) {
-    return 0;
-  }
-  
-  // Calculate basic payoff (intrinsic value)
-  let payoff = 0;
+  // Calculate intrinsic value based on option type
+  let intrinsicValue = 0;
   
   if (option.type === "call") {
-    // For a call, payoff is max(0, spot - strike)
-    payoff = Math.max(0, spotAtExpiry - option.actualStrike);
+    intrinsicValue = Math.max(0, spotAtExpiry - option.actualStrike);
   } else if (option.type === "put") {
-    // For a put, payoff is max(0, strike - spot)
-    payoff = Math.max(0, option.actualStrike - spotAtExpiry);
+    intrinsicValue = Math.max(0, option.actualStrike - spotAtExpiry);
   }
   
-  // Apply quantity (as percentage)
-  payoff = payoff * (option.quantity / 100);
+  // Apply quantity adjustment
+  const quantityAdjusted = intrinsicValue * (option.quantity / 100);
   
-  // Subtract premium (cost of option)
-  if (option.premium) {
-    payoff -= option.premium;
-  }
-  
-  return payoff;
+  // Calculate total payoff (intrinsic value minus premium paid)
+  return quantityAdjusted - (option.premium || 0);
 };
 
-// Calculate the payoff for a custom strategy with multiple options
+// Calculate the total payoff of a custom strategy at a specific spot price
 export const calculateCustomStrategyPayoff = (options: OptionComponent[], spotAtExpiry: number, initialSpot: number, params: any): number => {
-  // Calculate payoff for each option and sum
   let totalPayoff = 0;
   
   for (const option of options) {
-    // Calculate individual option payoff
-    const payoff = calculateOptionPayoff(option, spotAtExpiry);
-    totalPayoff += payoff;
+    totalPayoff += calculateOptionPayoff(option, spotAtExpiry);
   }
   
   return totalPayoff;

@@ -1,3 +1,4 @@
+
 import { erf } from 'mathjs';
 
 // Black-Scholes option pricing for Forex
@@ -26,40 +27,48 @@ export const calculateForward = (S: number, T: number, r1: number, r2: number) =
   return S * Math.exp((r1 - r2) * T);
 };
 
-// New function to calculate barrier option prices
+// Function to check if barrier is active
+export const isBarrierActive = (type: string, S: number, B: number, isKnockIn: boolean, isUpperBarrier: boolean) => {
+  if (type === 'call') {
+    if (isKnockIn) {
+      // Call KI - active only when spot is above barrier for lower barrier, or below barrier for upper barrier
+      return isUpperBarrier ? S <= B : S >= B;
+    } else {
+      // Call KO - inactive when spot is above barrier for upper barrier, or below barrier for lower barrier
+      return isUpperBarrier ? S <= B : S >= B;
+    }
+  } else { // Put
+    if (isKnockIn) {
+      // Put KI - active only when spot is above barrier for upper barrier, or below barrier for lower barrier
+      return isUpperBarrier ? S >= B : S <= B;
+    } else {
+      // Put KO - inactive when spot is below barrier for lower barrier, or above barrier for upper barrier
+      return isUpperBarrier ? S <= B : S >= B;
+    }
+  }
+};
+
+// Calculate barrier option prices
 export const calculateBarrierOption = (type: string, S: number, K: number, B: number, T: number, r1: number, r2: number, sigma: number, isKnockIn: boolean) => {
-  // Simplified barrier option pricing
-  // In a real application, this would use more complex models
-  // This is a simple approximation for demo purposes
-  
+  // Get standard option price
   const standardPrice = type === 'call' 
     ? calculateCall(S, K, T, r1, r2, sigma) 
     : calculatePut(S, K, T, r1, r2, sigma);
   
-  // Barrier adjustment factor
-  let barrierFactor;
+  // Determine if we're dealing with upper or lower barrier
+  const isUpperBarrier = (type === 'call' && !isKnockIn) || (type === 'put' && isKnockIn);
   
-  if (type === 'call') {
-    if (isKnockIn) {
-      // Call KI - B is typically below spot
-      barrierFactor = Math.max(0, Math.min(1, (S - B) / (0.1 * S)));
-    } else {
-      // Call KO - B is typically above spot
-      barrierFactor = Math.max(0, Math.min(1, (B - S) / (0.1 * S)));
-    }
+  // Adjust price based on distance from barrier
+  let barrierFactor = 1.0;
+  
+  if (isUpperBarrier) {
+    // For upper barriers, further from barrier = higher price
+    barrierFactor = Math.min(1, Math.abs(B - S) / (0.1 * S));
   } else {
-    // No changes to put options as they are working correctly
-    if (isKnockIn) {
-      // Put KI - B is typically above spot
-      barrierFactor = Math.max(0, Math.min(1, (B - S) / (0.1 * S)));
-    } else {
-      // Put KO - B is typically below spot
-      barrierFactor = Math.max(0, Math.min(1, (S - B) / (0.1 * S)));
-    }
+    // For lower barriers, closer to barrier = higher price
+    barrierFactor = Math.max(0, Math.min(1, Math.abs(S - B) / (0.1 * S)));
   }
   
-  // Adjust price by barrier factor
-  // This is a simplified approach - real pricing would be more complex
   return standardPrice * barrierFactor;
 };
 
@@ -319,7 +328,7 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
         break;
       
       case 'strangle':
-        // Set a baseline payoff
+        // Start with the spot price
         hedgedPayoff = spot;
         
         // Apply put protection (if spot falls below put strike)
@@ -337,7 +346,19 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
         break;
       
       case 'straddle':
-        hedgedPayoff = results.strike; // Protection in both directions
+        // Start with spot price
+        hedgedPayoff = spot;
+        
+        // Apply put protection
+        if (spot < results.strike) {
+          hedgedPayoff = results.strike;
+        }
+        
+        // Apply call cap
+        if (spot > results.strike) {
+          hedgedPayoff = results.strike;
+        }
+        
         // Adjust for premium cost
         hedgedPayoff -= results.totalPremium;
         break;
@@ -391,13 +412,15 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
         // Start with the spot price
         hedgedPayoff = spot;
         
-        // If spot is above barrier, the call is knocked out (no protection)
-        if (spot > results.barrier) {
-          // No change - hedgedPayoff stays at spot (unprotected)
-        } 
-        // If below barrier but above strike, apply call protection
-        else if (spot > results.callStrike) {
-          hedgedPayoff = results.callStrike;
+        // Check if barrier is active
+        const callKoBarrierActive = isBarrierActive('call', spot, results.barrier, false, true);
+        
+        // Apply option effect only if barrier is active
+        if (callKoBarrierActive) {
+          // Apply call cap if spot is above strike
+          if (spot > results.callStrike) {
+            hedgedPayoff = results.callStrike;
+          }
         }
         
         // Adjust for premium cost
@@ -408,9 +431,12 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
         // Start with the spot price
         hedgedPayoff = spot;
         
-        // If spot is above barrier, the put is knocked in (has protection)
-        if (spot > results.barrier) {
-          // Apply put protection if needed
+        // Check if barrier is active
+        const putKiBarrierActive = isBarrierActive('put', spot, results.barrier, true, true);
+        
+        // Apply option effect only if barrier is active
+        if (putKiBarrierActive) {
+          // Apply put floor if spot is below strike
           if (spot < results.putStrike) {
             hedgedPayoff = results.putStrike;
           }
@@ -424,25 +450,27 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
         // Start with the spot price
         hedgedPayoff = spot;
         
-        // Call with KO Upper Barrier
-        if (spot <= results.barrierUpper) {
-          // Below upper barrier - call is active
+        // Check if call with KO upper barrier is active
+        const callKoActive = isBarrierActive('call', spot, results.barrierUpper, false, true);
+        
+        if (callKoActive) {
+          // Call is active, apply cap if needed
           if (spot > results.callStrike) {
-            // Above call strike - call protection applies
             hedgedPayoff = results.callStrike;
           }
         }
         
-        // Put with KI Lower Barrier
-        if (spot <= results.barrierLower) {
-          // Below lower barrier - put is knocked in
+        // Check if put with KI lower barrier is active
+        const putKiActive = isBarrierActive('put', spot, results.barrierLower, true, false);
+        
+        if (putKiActive) {
+          // Put is active, apply floor if needed
           if (spot < results.putStrike) {
-            // Below put strike - put protection applies
             hedgedPayoff = results.putStrike;
           }
         }
         
-        // Adjust for premium cost
+        // Adjust for premium costs
         hedgedPayoff -= results.totalPremium;
         break;
       
