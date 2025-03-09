@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { 
   calculateStrategyResults, 
@@ -169,30 +170,65 @@ const HedgeCalculator = () => {
     const step = (maxSpot - minSpot) / 100;
     
     for (let spot = minSpot; spot <= maxSpot; spot += step) {
+      // Calculate unhedged rate - this is just the spot rate
       const unhedgedRate = spot;
       
+      // Calculate payoff from the strategy
       const payoff = calculateCustomStrategyPayoff(options, spot, params.spot, globalParams);
       
+      // Initialize hedged rate with the spot rate
       let hedgedRate = spot;
       
-      options.forEach(option => {
+      // Apply option effects on the hedged rate
+      for (const option of options) {
+        // For call options, cap the upside at the strike price
         if (option.type === "call" && option.actualStrike && spot > option.actualStrike) {
-          hedgedRate = option.actualStrike;
-        } else if (option.type === "put" && option.actualStrike && spot < option.actualStrike) {
-          hedgedRate = option.actualStrike;
+          // Check if barriers are present and active
+          let barrierActive = true;
+          
+          // Check upper barrier (knock-out) for calls
+          if (option.actualUpperBarrier && spot > option.actualUpperBarrier) {
+            barrierActive = false; // Knocked out
+          }
+          
+          // Check lower barrier (knock-in) for calls
+          if (option.actualLowerBarrier && spot < option.actualLowerBarrier) {
+            barrierActive = false; // Not knocked in
+          }
+          
+          // Apply call option effect only if barriers allow
+          if (barrierActive) {
+            // For a call, we're protected against upside movement
+            hedgedRate = Math.min(hedgedRate, option.actualStrike);
+          }
+        } 
+        // For put options, put a floor at the strike price
+        else if (option.type === "put" && option.actualStrike && spot < option.actualStrike) {
+          // Check if barriers are present and active
+          let barrierActive = true;
+          
+          // Check upper barrier (knock-in) for puts
+          if (option.actualUpperBarrier && spot < option.actualUpperBarrier) {
+            barrierActive = false; // Not knocked in
+          }
+          
+          // Check lower barrier (knock-out) for puts
+          if (option.actualLowerBarrier && spot < option.actualLowerBarrier) {
+            barrierActive = false; // Knocked out
+          }
+          
+          // Apply put option effect only if barriers allow
+          if (barrierActive) {
+            // For a put, we're protected against downside movement
+            hedgedRate = Math.max(hedgedRate, option.actualStrike);
+          }
         }
-        
-        if (option.type === "call" && option.actualUpperBarrier && spot > option.actualUpperBarrier) {
-          hedgedRate = spot;
-        }
-        
-        if (option.type === "put" && option.actualUpperBarrier && spot < option.actualUpperBarrier) {
-          hedgedRate = spot;
-        }
-      });
+      }
       
-      hedgedRate = hedgedRate - Math.abs(payoff);
+      // Adjust the hedged rate by the payoff
+      hedgedRate = spot + payoff;
       
+      // Create data point for the chart
       const dataPoint: any = {
         spot: parseFloat(spot.toFixed(4)),
         'Unhedged Rate': parseFloat(unhedgedRate.toFixed(4)),
@@ -200,6 +236,7 @@ const HedgeCalculator = () => {
         'Initial Spot': parseFloat(params.spot.toFixed(4))
       };
       
+      // Add strikes and barriers to the first data point for reference lines
       if (spots.length === 0) {
         options.forEach((option, index) => {
           if (option.actualStrike) {

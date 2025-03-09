@@ -118,7 +118,7 @@ const PayoffChart = ({ data, selectedStrategy, spot, riskReward }: PayoffChartPr
       );
     }
 
-    // Add strategy-specific lines
+    // Add strategy-specific reference lines
     if (selectedStrategy === "custom" && data.length > 0) {
       // Find all strike and barrier keys
       const firstDataPoint = data[0];
@@ -172,7 +172,9 @@ const PayoffChart = ({ data, selectedStrategy, spot, riskReward }: PayoffChartPr
           );
         }
       });
-    } else if (selectedStrategy === "callKO" && data.length > 0) {
+    } 
+    // Add reference lines for other strategies
+    else if (selectedStrategy === "callKO" && data.length > 0) {
       // Add KO barrier line
       if (data[0]["KO Barrier"]) {
         referenceLines.push(
