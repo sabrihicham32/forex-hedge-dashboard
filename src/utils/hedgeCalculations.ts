@@ -1,4 +1,3 @@
-
 import { erf } from 'mathjs';
 
 // Black-Scholes option pricing for Forex
@@ -339,13 +338,25 @@ export const calculatePayoff = (
   const maxSpot = params.spot * 1.3;
   const step = (maxSpot - minSpot) / 100;
 
+  // Calculate payoff for each spot price
   for (let spot = minSpot; spot <= maxSpot; spot += step) {
+    // Base payoff is the spot itself (unhedged position)
     const noHedgePayoff = spot;
-    let hedgedPayoff;
+    let hedgedPayoff = spot; // Start with spot as base
+    let payoffAdjustment = 0;
 
     switch(selectedStrategy) {
       case 'collar':
-        hedgedPayoff = Math.min(Math.max(spot, results.putStrike), results.callStrike);
+        // Long put + Short call
+        if (spot < results.putStrike) {
+          payoffAdjustment = results.putStrike - spot;
+        } else if (spot > results.callStrike) {
+          payoffAdjustment = results.callStrike - spot;
+        }
+        if (includePremium && results.totalPremium) {
+          payoffAdjustment -= results.totalPremium;
+        }
+        hedgedPayoff = spot + payoffAdjustment;
         break;
       
       case 'forward':
@@ -353,169 +364,115 @@ export const calculatePayoff = (
         break;
       
       case 'strangle':
-        // Start with the spot price
-        hedgedPayoff = spot;
-        
-        // Apply put protection (if spot falls below put strike)
+        // Long put + Long call
         if (spot < results.putStrike) {
-          hedgedPayoff = results.putStrike;
+          payoffAdjustment = results.putStrike - spot;
+        } else if (spot > results.callStrike) {
+          payoffAdjustment = spot - results.callStrike;
         }
-        
-        // Apply call cap (if spot rises above call strike)
-        if (spot > results.callStrike) {
-          hedgedPayoff = results.callStrike;
-        }
-        
-        // Adjust for premium cost if includePremium is true
         if (includePremium && results.totalPremium) {
-          hedgedPayoff -= results.totalPremium;
+          payoffAdjustment -= results.totalPremium;
         }
+        hedgedPayoff = spot + payoffAdjustment;
         break;
       
       case 'straddle':
-        // Start with spot price
-        hedgedPayoff = spot;
-        
-        // Apply put protection
+        // Long put + Long call at same strike
         if (spot < results.strike) {
-          hedgedPayoff = results.strike;
+          payoffAdjustment = results.strike - spot;
+        } else if (spot > results.strike) {
+          payoffAdjustment = spot - results.strike;
         }
-        
-        // Apply call cap
-        if (spot > results.strike) {
-          hedgedPayoff = results.strike;
-        }
-        
-        // Adjust for premium cost if includePremium is true
         if (includePremium && results.totalPremium) {
-          hedgedPayoff -= results.totalPremium;
+          payoffAdjustment -= results.totalPremium;
         }
+        hedgedPayoff = spot + payoffAdjustment;
         break;
       
       case 'put':
-        // Start with the spot price
-        hedgedPayoff = spot;
-        
-        // Apply put protection if spot falls below put strike
+        // Long put only
         if (spot < results.putStrike) {
-          hedgedPayoff = results.putStrike;
+          payoffAdjustment = results.putStrike - spot;
         }
-        
-        // Adjust for premium cost if includePremium is true
         if (includePremium && results.putPrice) {
-          hedgedPayoff -= results.putPrice;
+          payoffAdjustment -= results.putPrice;
         }
+        hedgedPayoff = spot + payoffAdjustment;
         break;
       
       case 'call':
-        // Start with the spot price
-        hedgedPayoff = spot;
-        
-        // Apply call cap if spot rises above call strike
+        // Long call only
         if (spot > results.callStrike) {
-          hedgedPayoff = results.callStrike;
+          payoffAdjustment = results.callStrike - spot;
         }
-        
-        // Adjust for premium cost if includePremium is true
         if (includePremium && results.callPrice) {
-          hedgedPayoff -= results.callPrice;
+          payoffAdjustment -= results.callPrice;
         }
+        hedgedPayoff = spot + payoffAdjustment;
         break;
       
       case 'seagull':
-        // Start with the spot price
-        hedgedPayoff = spot;
-        
+        // Long put (mid) + Short call (high) + Short put (low)
         if (spot < results.putSellStrike) {
-          // Below the sold put strike - lose protection
-          hedgedPayoff = results.putSellStrike - (results.putSellStrike - spot);
+          // Below low strike - lose protection from short put
+          payoffAdjustment = -(spot - results.putSellStrike);
         } else if (spot < results.putBuyStrike) {
-          // Between sold put and bought put - have protection
-          hedgedPayoff = results.putBuyStrike;
+          // Between low and mid - full protection from long put
+          payoffAdjustment = results.putBuyStrike - spot;
         } else if (spot > results.callSellStrike) {
-          // Above sold call strike - capped upside
-          hedgedPayoff = results.callSellStrike;
+          // Above high strike - capped from short call
+          payoffAdjustment = results.callSellStrike - spot;
         }
-        
-        // Adjust for net premium if includePremium is true
         if (includePremium && results.netPremium) {
-          hedgedPayoff -= results.netPremium;
+          payoffAdjustment -= results.netPremium;
         }
+        hedgedPayoff = spot + payoffAdjustment;
         break;
       
       case 'callKO':
-        // Start with the spot price
-        hedgedPayoff = spot;
-        
-        // Check if barrier is hit
-        const callKoBarrierActive = spot < results.barrier; // KO option is inactive if spot >= barrier
-        
-        if (callKoBarrierActive) {
-          // Apply call cap if spot is above strike and barrier not hit
-          if (spot > results.callStrike) {
-            hedgedPayoff = results.callStrike;
-          }
+        // Call with Knock-Out barrier
+        const isCallKoActive = spot < results.barrier;
+        if (isCallKoActive && spot > results.callStrike) {
+          payoffAdjustment = results.callStrike - spot;
         }
-        
-        // Adjust for premium cost if includePremium is true
         if (includePremium && results.callPrice) {
-          hedgedPayoff -= results.callPrice;
+          payoffAdjustment -= results.callPrice;
         }
+        hedgedPayoff = spot + payoffAdjustment;
         break;
       
       case 'putKI':
-        // Start with the spot price
-        hedgedPayoff = spot;
-        
-        // Check if barrier is hit
-        const putKiBarrierActive = spot >= results.barrier; // KI option is active if spot >= barrier
-        
-        if (putKiBarrierActive) {
-          // Apply put floor if spot is below strike and barrier is hit
-          if (spot < results.putStrike) {
-            hedgedPayoff = results.putStrike;
-          }
+        // Put with Knock-In barrier
+        const isPutKiActive = spot <= results.barrier;
+        if (isPutKiActive && spot < results.putStrike) {
+          payoffAdjustment = results.putStrike - spot;
         }
-        
-        // Adjust for premium cost if includePremium is true
         if (includePremium && results.putPrice) {
-          hedgedPayoff -= results.putPrice;
+          payoffAdjustment -= results.putPrice;
         }
+        hedgedPayoff = spot + payoffAdjustment;
         break;
       
       case 'callPutKI_KO':
-        // Start with the spot price
-        hedgedPayoff = spot;
+        // Combination of Call KO and Put KI
+        const isComboCallKoActive = spot < results.barrierUpper;
+        const isComboPutKiActive = spot <= results.barrierLower;
         
-        // Check if call with KO upper barrier is active
-        const callKoActive = spot < results.barrierUpper; // KO Call is active if spot < upper barrier
-        
-        if (callKoActive) {
-          // Call is active, apply cap if needed
-          if (spot > results.callStrike) {
-            hedgedPayoff = results.callStrike;
-          }
+        if (isComboCallKoActive && spot > results.callStrike) {
+          payoffAdjustment += results.callStrike - spot;
         }
-        
-        // Check if put with KI lower barrier is active
-        const putKiActive = spot <= results.barrierLower; // KI Put is active if spot <= lower barrier
-        
-        if (putKiActive) {
-          // Put is active, apply floor if needed
-          if (spot < results.putStrike) {
-            hedgedPayoff = results.putStrike;
-          }
+        if (isComboPutKiActive && spot < results.putStrike) {
+          payoffAdjustment += results.putStrike - spot;
         }
-        
-        // Adjust for premium costs if includePremium is true
         if (includePremium && results.totalPremium) {
-          hedgedPayoff -= results.totalPremium;
+          payoffAdjustment -= results.totalPremium;
         }
+        hedgedPayoff = spot + payoffAdjustment;
         break;
-      
-      default:
-        hedgedPayoff = spot;
     }
+    
+    // Ensure hedged payoff can't be negative
+    hedgedPayoff = Math.max(0, hedgedPayoff);
     
     const dataPoint: any = {
       spot: parseFloat(spot.toFixed(4)),
@@ -524,36 +481,43 @@ export const calculatePayoff = (
       'Initial Spot': parseFloat(params.spot.toFixed(4))
     };
     
-    // Add relevant strikes based on strategy
-    if (selectedStrategy === 'collar') {
-      dataPoint['Put Strike'] = parseFloat(results.putStrike.toFixed(4));
-      dataPoint['Call Strike'] = parseFloat(results.callStrike.toFixed(4));
-    } else if (selectedStrategy === 'strangle') {
-      dataPoint['Put Strike'] = parseFloat(results.putStrike.toFixed(4));
-      dataPoint['Call Strike'] = parseFloat(results.callStrike.toFixed(4));
-    } else if (selectedStrategy === 'straddle') {
-      dataPoint['Strike'] = parseFloat(results.strike.toFixed(4));
-    } else if (selectedStrategy === 'put') {
-      dataPoint['Put Strike'] = parseFloat(results.putStrike.toFixed(4));
-    } else if (selectedStrategy === 'call') {
-      dataPoint['Call Strike'] = parseFloat(results.callStrike.toFixed(4));
-    } else if (selectedStrategy === 'seagull') {
-      dataPoint['Put Sell Strike'] = parseFloat(results.putSellStrike.toFixed(4));
-      dataPoint['Put Buy Strike'] = parseFloat(results.putBuyStrike.toFixed(4));
-      dataPoint['Call Sell Strike'] = parseFloat(results.callSellStrike.toFixed(4));
-    }
-    
-    if (selectedStrategy === 'callKO') {
-      dataPoint['Call Strike'] = parseFloat(results.callStrike.toFixed(4));
-      dataPoint['KO Barrier'] = parseFloat(results.barrier.toFixed(4));
-    } else if (selectedStrategy === 'putKI') {
-      dataPoint['Put Strike'] = parseFloat(results.putStrike.toFixed(4));
-      dataPoint['KI Barrier'] = parseFloat(results.barrier.toFixed(4));
-    } else if (selectedStrategy === 'callPutKI_KO') {
-      dataPoint['Call Strike'] = parseFloat(results.callStrike.toFixed(4));
-      dataPoint['Put Strike'] = parseFloat(results.putStrike.toFixed(4));
-      dataPoint['Upper Barrier'] = parseFloat(results.barrierUpper.toFixed(4));
-      dataPoint['Lower Barrier'] = parseFloat(results.barrierLower.toFixed(4));
+    // Add strategy-specific reference lines
+    if (spots.length === 0) {
+      switch(selectedStrategy) {
+        case 'collar':
+        case 'strangle':
+          dataPoint['Put Strike'] = parseFloat(results.putStrike.toFixed(4));
+          dataPoint['Call Strike'] = parseFloat(results.callStrike.toFixed(4));
+          break;
+        case 'straddle':
+          dataPoint['Strike'] = parseFloat(results.strike.toFixed(4));
+          break;
+        case 'put':
+          dataPoint['Put Strike'] = parseFloat(results.putStrike.toFixed(4));
+          break;
+        case 'call':
+          dataPoint['Call Strike'] = parseFloat(results.callStrike.toFixed(4));
+          break;
+        case 'seagull':
+          dataPoint['Put Sell Strike'] = parseFloat(results.putSellStrike.toFixed(4));
+          dataPoint['Put Buy Strike'] = parseFloat(results.putBuyStrike.toFixed(4));
+          dataPoint['Call Sell Strike'] = parseFloat(results.callSellStrike.toFixed(4));
+          break;
+        case 'callKO':
+          dataPoint['Call Strike'] = parseFloat(results.callStrike.toFixed(4));
+          dataPoint['KO Barrier'] = parseFloat(results.barrier.toFixed(4));
+          break;
+        case 'putKI':
+          dataPoint['Put Strike'] = parseFloat(results.putStrike.toFixed(4));
+          dataPoint['KI Barrier'] = parseFloat(results.barrier.toFixed(4));
+          break;
+        case 'callPutKI_KO':
+          dataPoint['Call Strike'] = parseFloat(results.callStrike.toFixed(4));
+          dataPoint['Put Strike'] = parseFloat(results.putStrike.toFixed(4));
+          dataPoint['Upper Barrier'] = parseFloat(results.barrierUpper.toFixed(4));
+          dataPoint['Lower Barrier'] = parseFloat(results.barrierLower.toFixed(4));
+          break;
+      }
     }
     
     spots.push(dataPoint);
