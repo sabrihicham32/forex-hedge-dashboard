@@ -41,7 +41,7 @@ export const calculateOptionPremium = (option: OptionComponent, spot: number, pa
   }
   
   // Apply quantity (as percentage)
-  return premium * (option.quantity / 100);
+  return premium * (Math.abs(option.quantity) / 100);
 };
 
 // Calculate call option premium using Black-Scholes
@@ -119,14 +119,14 @@ export const isBarrierActive = (option: OptionComponent, spotPrice: number): boo
     if (option.actualUpperBarrier && !option.actualLowerBarrier) {
       return spotPrice <= option.actualUpperBarrier;
     }
-    // Call with lower barrier (KI) - option is active only if spot is above barrier
+    // Call with lower barrier (KI) - option is active only if spot has hit barrier
     else if (option.actualLowerBarrier && !option.actualUpperBarrier) {
       return spotPrice >= option.actualLowerBarrier;
     }
   } 
   // Handle Put options with barriers
   else if (option.type === "put") {
-    // Put with upper barrier (KI) - option is active only if spot is above barrier
+    // Put with upper barrier (KI) - option is active only if spot has hit barrier
     if (option.actualUpperBarrier && !option.actualLowerBarrier) {
       return spotPrice >= option.actualUpperBarrier;
     }
@@ -167,7 +167,8 @@ export const calculateOptionPayoff = (option: OptionComponent, spotAtExpiry: num
   }
   
   // Apply quantity adjustment
-  const quantityAdjusted = intrinsicValue * (option.quantity / 100);
+  const quantityFactor = option.quantity > 0 ? 1 : -1;
+  const quantityAdjusted = intrinsicValue * Math.abs(option.quantity) / 100 * quantityFactor;
   
   // Calculate total payoff (intrinsic value minus premium paid)
   return quantityAdjusted - (option.premium || 0);
