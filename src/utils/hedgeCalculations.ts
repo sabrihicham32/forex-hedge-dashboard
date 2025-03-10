@@ -1,3 +1,4 @@
+
 import { erf } from 'mathjs';
 
 // Black-Scholes option pricing for Forex
@@ -195,7 +196,7 @@ export const calculateStrategyResults = (
   
   switch(selectedStrategy) {
     case 'collar':
-      return findCollarEquivalentStrike({
+      const collarResult = findCollarEquivalentStrike({
         spot, 
         strikeUpper, 
         strikeLower, 
@@ -204,12 +205,18 @@ export const calculateStrategyResults = (
         r2, 
         vol
       });
+      
+      // Ensure totalPremium is set
+      collarResult.totalPremium = collarResult.callPrice + collarResult.putPrice;
+      return collarResult;
     
     case 'forward':
       const forwardRate = calculateForward(spot, maturity, r1, r2);
       return {
         forwardRate,
-        details: `Taux à terme fixé à ${forwardRate.toFixed(4)}`
+        details: `Taux à terme fixé à ${forwardRate.toFixed(4)}`,
+        totalPremium: 0, // Forward contracts don't have premium
+        netPremium: 0
       };
     
     case 'strangle':
@@ -220,7 +227,8 @@ export const calculateStrategyResults = (
         callStrike: strikeUpper,
         putPrice,
         callPrice,
-        totalPremium: putPrice + callPrice
+        totalPremium: putPrice + callPrice,
+        netPremium: putPrice + callPrice
       };
     
     case 'straddle':
@@ -230,21 +238,26 @@ export const calculateStrategyResults = (
         strike: spot,
         putPrice: atMoneyPut,
         callPrice: atMoneyCall,
-        totalPremium: atMoneyPut + atMoneyCall
+        totalPremium: atMoneyPut + atMoneyCall,
+        netPremium: atMoneyPut + atMoneyCall
       };
     
     case 'put':
       const simplePutPrice = calculatePut(spot, strikeLower, maturity, r1, r2, vol);
       return {
         putStrike: strikeLower,
-        putPrice: simplePutPrice
+        putPrice: simplePutPrice,
+        totalPremium: simplePutPrice,
+        netPremium: simplePutPrice
       };
     
     case 'call':
       const simpleCallPrice = calculateCall(spot, strikeUpper, maturity, r1, r2, vol);
       return {
         callStrike: strikeUpper,
-        callPrice: simpleCallPrice
+        callPrice: simpleCallPrice,
+        totalPremium: simpleCallPrice,
+        netPremium: simpleCallPrice
       };
     
     case 'seagull':
@@ -261,7 +274,8 @@ export const calculateStrategyResults = (
         putBuyPrice: seagullPutBuy,
         callSellPrice: seagullCallSell,
         putSellPrice: seagullPutSell,
-        netPremium
+        netPremium,
+        totalPremium: netPremium
       };
     
     case 'callKO':
@@ -271,7 +285,9 @@ export const calculateStrategyResults = (
         callStrike: strikeUpper,
         barrier: barrierUpper,
         callPrice: callKOPrice,
-        details: "Call KO désactivé si le taux dépasse la barrière"
+        details: "Call KO désactivé si le taux dépasse la barrière",
+        totalPremium: callKOPrice,
+        netPremium: callKOPrice
       };
     
     case 'putKI':
@@ -281,13 +297,16 @@ export const calculateStrategyResults = (
         putStrike: strikeLower,
         barrier: barrierUpper,
         putPrice: putKIPrice,
-        details: "Put KI activé si le taux dépasse la barrière"
+        details: "Put KI activé si le taux dépasse la barrière",
+        totalPremium: putKIPrice,
+        netPremium: putKIPrice
       };
     
     case 'callPutKI_KO':
       // Combination of Call KO and Put KI
       const comboCallKOPrice = calculateBarrierOption('call', spot, strikeUpper, barrierUpper, maturity, r1, r2, vol, false);
       const comboPutKIPrice = calculateBarrierOption('put', spot, strikeLower, barrierLower, maturity, r1, r2, vol, true);
+      const comboTotalPremium = comboCallKOPrice + comboPutKIPrice;
       
       return {
         callStrike: strikeUpper,
@@ -296,7 +315,8 @@ export const calculateStrategyResults = (
         barrierLower: barrierLower,
         callPrice: comboCallKOPrice,
         putPrice: comboPutKIPrice,
-        totalPremium: comboCallKOPrice + comboPutKIPrice,
+        totalPremium: comboTotalPremium,
+        netPremium: comboTotalPremium,
         details: "Stratégie pour profiter d'une baisse jusqu'à la barrière"
       };
     

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { 
   calculateStrategyResults, 
@@ -290,18 +291,27 @@ const HedgeCalculator = () => {
       }
       
       // Calculate total premium if not already present
-      if (!calculatedResults.totalPremium) {
-        if (calculatedResults.callPrice && calculatedResults.putPrice) {
-          calculatedResults.totalPremium = calculatedResults.callPrice + calculatedResults.putPrice;
-        } else if (calculatedResults.callPrice) {
-          calculatedResults.totalPremium = calculatedResults.callPrice;
-        } else if (calculatedResults.putPrice) {
-          calculatedResults.totalPremium = calculatedResults.putPrice;
-        } else if (calculatedResults.netPremium) {
-          calculatedResults.totalPremium = calculatedResults.netPremium;
-        } else {
-          calculatedResults.totalPremium = 0;
+      // Ensure calculatedResults has a totalPremium property for all strategy types
+      if (!('totalPremium' in calculatedResults)) {
+        let totalPremium = 0;
+        
+        if ('callPrice' in calculatedResults && 'putPrice' in calculatedResults) {
+          totalPremium = calculatedResults.callPrice + calculatedResults.putPrice;
+        } else if ('callPrice' in calculatedResults) {
+          totalPremium = calculatedResults.callPrice;
+        } else if ('putPrice' in calculatedResults) {
+          totalPremium = calculatedResults.putPrice;
+        } else if ('netPremium' in calculatedResults) {
+          totalPremium = calculatedResults.netPremium;
         }
+        
+        // Assign the calculated totalPremium to the results object
+        calculatedResults.totalPremium = totalPremium;
+      }
+      
+      // Ensure netPremium exists if used later
+      if (!('netPremium' in calculatedResults)) {
+        calculatedResults.netPremium = calculatedResults.totalPremium || 0;
       }
       
       const payoffData = calculatePayoff(calculatedResults, selectedStrategy, paramsWithSpreads, includePremium);
