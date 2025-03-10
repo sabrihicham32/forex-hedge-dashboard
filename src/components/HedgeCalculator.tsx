@@ -13,7 +13,8 @@ import type { OptionComponent } from "./CustomStrategyOption";
 import { 
   calculateCustomStrategyPayoff, 
   calculateOptionPremium,
-  calculateRiskReward
+  calculateRiskReward,
+  isBarrierActive
 } from "@/utils/barrierOptionCalculations";
 import { Section, GlassContainer, Grid, Heading } from "@/components/ui/layout";
 import { Plus, Edit2 } from "lucide-react";
@@ -169,61 +170,42 @@ const HedgeCalculator = () => {
     const step = (maxSpot - minSpot) / 100;
     
     for (let spot = minSpot; spot <= maxSpot; spot += step) {
-      // Calculate unhedged rate (spot rate without hedging)
       const unhedgedRate = spot;
       
-      // For each point, we'll calculate:
-      // 1. The total option payoffs/costs
       let totalOptionEffect = 0;
       
-      // Process each option
       for (const option of options) {
-        // Check if the option is active based on barriers
         const isActive = isBarrierActive(option, spot);
         
         if (!isActive) {
-          // Option is knocked out or not knocked in - only lose the premium
           totalOptionEffect -= option.premium || 0;
           continue;
         }
         
-        // Calculate the payoff effect
         if (option.type === "call") {
           if (spot > option.actualStrike) {
-            // For long call (positive quantity): limit to strike price
             if (option.quantity > 0) {
-              // Call is in the money - cap the rate at strike price
-              // The effect is (strike - spot) which is negative
               totalOptionEffect += (option.actualStrike - spot);
             } else {
-              // For short call (negative quantity): lose money as spot increases
               totalOptionEffect += (option.actualStrike - spot) * Math.abs(option.quantity / 100);
             }
           }
-          // Premium is always paid/received
           totalOptionEffect -= option.premium || 0;
         } 
         else if (option.type === "put") {
           if (spot < option.actualStrike) {
-            // For long put (positive quantity): put a floor at strike price
             if (option.quantity > 0) {
-              // Put is in the money - floor the rate at strike price
-              // The effect is (strike - spot) which is positive
               totalOptionEffect += (option.actualStrike - spot);
             } else {
-              // For short put (negative quantity): lose money as spot decreases
               totalOptionEffect += (option.actualStrike - spot) * Math.abs(option.quantity / 100);
             }
           }
-          // Premium is always paid/received
           totalOptionEffect -= option.premium || 0;
         }
       }
       
-      // The hedged rate is the unhedged rate plus the total option effect
       const hedgedRate = unhedgedRate + totalOptionEffect;
       
-      // Create data point for the chart
       const dataPoint: any = {
         spot: parseFloat(spot.toFixed(4)),
         'Unhedged Rate': parseFloat(unhedgedRate.toFixed(4)),
@@ -231,8 +213,6 @@ const HedgeCalculator = () => {
         'Initial Spot': parseFloat(params.spot.toFixed(4))
       };
       
-      // Add strikes and barriers to the data for reference lines
-      // Only add them to the first data point
       if (spots.length === 0) {
         options.forEach((option, index) => {
           if (option.actualStrike) {
