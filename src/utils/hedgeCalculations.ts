@@ -306,7 +306,12 @@ export const calculateStrategyResults = (
 };
 
 // Calculate payoff data for chart
-export const calculatePayoff = (results: any, selectedStrategy: string, params: any) => {
+export const calculatePayoff = (
+  results: any, 
+  selectedStrategy: string, 
+  params: any, 
+  includePremium: boolean = true
+) => {
   if (!results) return [];
   
   const spots = [];
@@ -341,8 +346,10 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
           hedgedPayoff = results.callStrike;
         }
         
-        // Adjust for premium cost
-        hedgedPayoff -= results.totalPremium;
+        // Adjust for premium cost if includePremium is true
+        if (includePremium && results.totalPremium) {
+          hedgedPayoff -= results.totalPremium;
+        }
         break;
       
       case 'straddle':
@@ -359,8 +366,10 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
           hedgedPayoff = results.strike;
         }
         
-        // Adjust for premium cost
-        hedgedPayoff -= results.totalPremium;
+        // Adjust for premium cost if includePremium is true
+        if (includePremium && results.totalPremium) {
+          hedgedPayoff -= results.totalPremium;
+        }
         break;
       
       case 'put':
@@ -372,8 +381,10 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
           hedgedPayoff = results.putStrike;
         }
         
-        // Adjust for premium cost
-        hedgedPayoff -= results.putPrice;
+        // Adjust for premium cost if includePremium is true
+        if (includePremium && results.putPrice) {
+          hedgedPayoff -= results.putPrice;
+        }
         break;
       
       case 'call':
@@ -385,8 +396,10 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
           hedgedPayoff = results.callStrike;
         }
         
-        // Adjust for premium cost
-        hedgedPayoff -= results.callPrice;
+        // Adjust for premium cost if includePremium is true
+        if (includePremium && results.callPrice) {
+          hedgedPayoff -= results.callPrice;
+        }
         break;
       
       case 'seagull':
@@ -404,8 +417,10 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
           hedgedPayoff = results.callSellStrike;
         }
         
-        // Adjust for net premium
-        hedgedPayoff -= results.netPremium;
+        // Adjust for net premium if includePremium is true
+        if (includePremium && results.netPremium) {
+          hedgedPayoff -= results.netPremium;
+        }
         break;
       
       case 'callKO':
@@ -422,8 +437,10 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
           }
         }
         
-        // Adjust for premium cost
-        hedgedPayoff -= results.callPrice;
+        // Adjust for premium cost if includePremium is true
+        if (includePremium && results.callPrice) {
+          hedgedPayoff -= results.callPrice;
+        }
         break;
       
       case 'putKI':
@@ -440,8 +457,10 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
           }
         }
         
-        // Adjust for premium cost
-        hedgedPayoff -= results.putPrice;
+        // Adjust for premium cost if includePremium is true
+        if (includePremium && results.putPrice) {
+          hedgedPayoff -= results.putPrice;
+        }
         break;
       
       case 'callPutKI_KO':
@@ -468,8 +487,10 @@ export const calculatePayoff = (results: any, selectedStrategy: string, params: 
           }
         }
         
-        // Adjust for premium costs
-        hedgedPayoff -= results.totalPremium;
+        // Adjust for premium costs if includePremium is true
+        if (includePremium && results.totalPremium) {
+          hedgedPayoff -= results.totalPremium;
+        }
         break;
       
       default:

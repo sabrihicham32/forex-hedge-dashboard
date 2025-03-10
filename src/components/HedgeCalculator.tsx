@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { 
   calculateStrategyResults, 
@@ -53,8 +52,8 @@ const HedgeCalculator = () => {
     vol: FOREX_PAIRS["EUR/USD"].vol,
     premium: 0,
     notional: 1000000,
-    bidSpread: 0,  // New parameter for bid spread
-    askSpread: 0,  // New parameter for ask spread
+    bidSpread: 0,
+    askSpread: 0,
   });
   const [riskReward, setRiskReward] = useState<any>(null);
   
@@ -289,8 +288,20 @@ const HedgeCalculator = () => {
       if (calculatedResults.putPrice) {
         calculatedResults.putPrice *= (1 + params.bidSpread / 100);
       }
-      if (calculatedResults.totalPremium) {
-        calculatedResults.totalPremium *= (1 + params.bidSpread / 100);
+      
+      // Calculate total premium if not already present
+      if (!calculatedResults.totalPremium) {
+        if (calculatedResults.callPrice && calculatedResults.putPrice) {
+          calculatedResults.totalPremium = calculatedResults.callPrice + calculatedResults.putPrice;
+        } else if (calculatedResults.callPrice) {
+          calculatedResults.totalPremium = calculatedResults.callPrice;
+        } else if (calculatedResults.putPrice) {
+          calculatedResults.totalPremium = calculatedResults.putPrice;
+        } else if (calculatedResults.netPremium) {
+          calculatedResults.totalPremium = calculatedResults.netPremium;
+        } else {
+          calculatedResults.totalPremium = 0;
+        }
       }
       
       const payoffData = calculatePayoff(calculatedResults, selectedStrategy, paramsWithSpreads, includePremium);
