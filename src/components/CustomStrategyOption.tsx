@@ -25,6 +25,8 @@ export interface OptionComponent {
   actualStrike?: number;
   actualUpperBarrier?: number;
   actualLowerBarrier?: number;
+  bidSpread?: number;
+  askSpread?: number;
 }
 
 const CustomStrategyOption: React.FC<CustomStrategyOptionProps> = ({
@@ -55,7 +57,7 @@ const CustomStrategyOption: React.FC<CustomStrategyOptionProps> = ({
 
   return (
     <div className="bg-muted/30 p-4 rounded-lg mb-4">
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {/* Option Type */}
         <div>
           <label className="block text-sm font-medium mb-1">Type</label>
@@ -187,26 +189,49 @@ const CustomStrategyOption: React.FC<CustomStrategyOptionProps> = ({
         </div>
 
         {/* Quantity */}
-        <div className="relative">
+        <div>
           <label className="block text-sm font-medium mb-1">Quantity (%)</label>
-          <div className="flex items-center">
-            <input
-              type="number"
-              className="input-field w-full"
-              value={optionData.quantity}
-              onChange={(e) => onUpdate(index, { quantity: parseFloat(e.target.value) })}
-              step="1"
-              min="0"
-              max="100"
-            />
-            <button
-              onClick={() => onDelete(index)}
-              className="absolute right-0 top-8 p-2 text-destructive hover:text-destructive/80 transition-colors"
-              title="Delete this option"
-            >
-              <Trash size={20} />
-            </button>
-          </div>
+          <input
+            type="number"
+            className="input-field w-full"
+            value={optionData.quantity}
+            onChange={(e) => onUpdate(index, { quantity: parseFloat(e.target.value) })}
+            step="1"
+          />
+        </div>
+
+        {/* Bid/Ask Spreads */}
+        <div>
+          <label className="block text-sm font-medium mb-1">
+            {optionData.quantity > 0 ? "Bid Spread (%)" : "Ask Spread (%)"}
+          </label>
+          <input
+            type="number"
+            className="input-field w-full"
+            value={optionData.quantity > 0 ? (optionData.bidSpread || 0) : (optionData.askSpread || 0)}
+            onChange={(e) => {
+              const value = parseFloat(e.target.value);
+              if (optionData.quantity > 0) {
+                onUpdate(index, { bidSpread: value });
+              } else {
+                onUpdate(index, { askSpread: value });
+              }
+            }}
+            step="0.1"
+            min="0"
+            max="20"
+          />
+        </div>
+
+        {/* Delete button */}
+        <div className="flex items-center justify-end">
+          <button
+            onClick={() => onDelete(index)}
+            className="p-2 text-destructive hover:text-destructive/80 transition-colors"
+            title="Delete this option"
+          >
+            <Trash size={20} />
+          </button>
         </div>
       </div>
     </div>

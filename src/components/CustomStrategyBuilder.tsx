@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import CustomStrategyOption, { OptionComponent } from "./CustomStrategyOption";
 import { Plus } from "lucide-react";
@@ -7,9 +8,14 @@ import { calculateOptionPremium } from "@/utils/barrierOptionCalculations";
 interface CustomStrategyBuilderProps {
   spot: number;
   onStrategyChange: (options: OptionComponent[], globalParams: any) => void;
+  includePremium: boolean;
 }
 
-const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ spot, onStrategyChange }) => {
+const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ 
+  spot, 
+  onStrategyChange,
+  includePremium 
+}) => {
   const [options, setOptions] = useState<OptionComponent[]>([
     {
       type: "call",
@@ -17,6 +23,8 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ spot, onS
       strikeType: "percentage",
       volatility: 20,
       quantity: 100,
+      bidSpread: 0,
+      askSpread: 0,
     },
   ]);
   const [globalParams, setGlobalParams] = useState({
@@ -33,6 +41,8 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ spot, onS
       strikeType: "percentage",
       volatility: 20,
       quantity: 100,
+      bidSpread: 0,
+      askSpread: 0,
     };
     const updatedOptions = [...options, newOption];
     setOptions(updatedOptions);
@@ -100,7 +110,7 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({ spot, onS
 
   useEffect(() => {
     updateOptionsWithPremiums(options);
-  }, [spot]); // Update when spot changes
+  }, [spot, includePremium]); // Update when spot or includePremium changes
 
   useEffect(() => {
     updateOptionsWithPremiums(options);

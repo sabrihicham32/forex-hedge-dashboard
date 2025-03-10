@@ -17,12 +17,14 @@ interface PayoffChartProps {
   data: any[];
   selectedStrategy: string;
   spot: number;
+  includePremium: boolean;
   riskReward?: {
     bestCase: number;
     worstCase: number;
     bestCaseSpot: number;
     worstCaseSpot: number;
     riskRewardRatio: number;
+    breakEvenPoints?: number[];
   };
 }
 
@@ -44,7 +46,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-const PayoffChart = ({ data, selectedStrategy, spot, riskReward }: PayoffChartProps) => {
+const PayoffChart = ({ data, selectedStrategy, spot, includePremium, riskReward }: PayoffChartProps) => {
   // Configure lines based on strategy
   const getChartConfig = () => {
     // Base lines that are shown for all strategies
@@ -116,6 +118,27 @@ const PayoffChart = ({ data, selectedStrategy, spot, riskReward }: PayoffChartPr
           }}
         />
       );
+
+      // Add break-even points if available
+      if (riskReward.breakEvenPoints && riskReward.breakEvenPoints.length > 0) {
+        riskReward.breakEvenPoints.forEach((point, index) => {
+          referenceLines.push(
+            <ReferenceLine
+              key={`break-even-${index}`}
+              x={point}
+              stroke="#6366F1"
+              strokeWidth={1}
+              strokeDasharray="2 2"
+              label={{
+                value: `Break-even`,
+                position: index % 2 === 0 ? "insideTopRight" : "insideTopLeft",
+                fill: "#6366F1",
+                fontSize: 12,
+              }}
+            />
+          );
+        });
+      }
     }
 
     // Add strategy-specific reference lines
@@ -264,9 +287,10 @@ const PayoffChart = ({ data, selectedStrategy, spot, riskReward }: PayoffChartPr
         <h3 className="text-lg font-medium">Payoff Profile</h3>
         <p className="text-sm text-muted-foreground">
           Visualize how the {selectedStrategy} strategy performs across different exchange rates
+          {includePremium ? " (including premium costs)" : " (excluding premium costs)"}
         </p>
         {riskReward && (
-          <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 text-sm">
             <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded">
               <span className="font-medium">Best Case:</span>{" "}
               {riskReward.bestCase.toFixed(4)} at {riskReward.bestCaseSpot.toFixed(4)}
@@ -275,9 +299,15 @@ const PayoffChart = ({ data, selectedStrategy, spot, riskReward }: PayoffChartPr
               <span className="font-medium">Worst Case:</span>{" "}
               {riskReward.worstCase.toFixed(4)} at {riskReward.worstCaseSpot.toFixed(4)}
             </div>
-            <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded col-span-2">
+            <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded">
               <span className="font-medium">Risk/Reward Ratio:</span>{" "}
               {riskReward.riskRewardRatio.toFixed(2)}
+            </div>
+            <div className="bg-purple-100 dark:bg-purple-900/30 p-2 rounded">
+              <span className="font-medium">Break-even Points:</span>{" "}
+              {riskReward.breakEvenPoints && riskReward.breakEvenPoints.length > 0 
+                ? riskReward.breakEvenPoints.map(p => p.toFixed(4)).join(", ")
+                : "None"}
             </div>
           </div>
         )}

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { 
   calculateStrategyResults, 
@@ -38,6 +39,7 @@ const HedgeCalculator = () => {
     r2: 0.03,
     notional: 1000000,
   });
+  const [includePremium, setIncludePremium] = useState(true);
   const [params, setParams] = useState({
     spot: FOREX_PAIRS["EUR/USD"].spot,
     strikeUpper: FOREX_PAIRS["EUR/USD"].defaultStrike,
@@ -51,6 +53,8 @@ const HedgeCalculator = () => {
     vol: FOREX_PAIRS["EUR/USD"].vol,
     premium: 0,
     notional: 1000000,
+    bidSpread: 0,  // New parameter for bid spread
+    askSpread: 0,  // New parameter for ask spread
   });
   const [riskReward, setRiskReward] = useState<any>(null);
   
@@ -109,6 +113,8 @@ const HedgeCalculator = () => {
           strikeType: "percentage",
           volatility: 20,
           quantity: 100,
+          bidSpread: 0,
+          askSpread: 0,
         }
       ]);
     }
@@ -152,7 +158,7 @@ const HedgeCalculator = () => {
     
     const payoffData = calculateCustomPayoffData(optionsWithPremiums, params, globalParams);
     
-    const riskRewardMetrics = calculateRiskReward(optionsWithPremiums, params.spot, globalParams);
+    const riskRewardMetrics = calculateRiskReward(optionsWithPremiums, params.spot, globalParams, includePremium);
     setRiskReward(riskRewardMetrics);
     
     setResults({
@@ -172,39 +178,13 @@ const HedgeCalculator = () => {
     for (let spot = minSpot; spot <= maxSpot; spot += step) {
       const unhedgedRate = spot;
       
-      let totalOptionEffect = 0;
+      let totalPayoff = 0;
       
-      for (const option of options) {
-        const isActive = isBarrierActive(option, spot);
-        
-        if (!isActive) {
-          totalOptionEffect -= option.premium || 0;
-          continue;
-        }
-        
-        if (option.type === "call") {
-          if (spot > option.actualStrike) {
-            if (option.quantity > 0) {
-              totalOptionEffect += (option.actualStrike - spot);
-            } else {
-              totalOptionEffect += (option.actualStrike - spot) * Math.abs(option.quantity / 100);
-            }
-          }
-          totalOptionEffect -= option.premium || 0;
-        } 
-        else if (option.type === "put") {
-          if (spot < option.actualStrike) {
-            if (option.quantity > 0) {
-              totalOptionEffect += (option.actualStrike - spot);
-            } else {
-              totalOptionEffect += (option.actualStrike - spot) * Math.abs(option.quantity / 100);
-            }
-          }
-          totalOptionEffect -= option.premium || 0;
-        }
-      }
+      // Calculate the effect of all options combined
+      totalPayoff = calculateCustomStrategyPayoff(options, spot, params.spot, globalParams, includePremium);
       
-      const hedgedRate = unhedgedRate + totalOptionEffect;
+      // The hedged rate is the unhedged rate plus the payoff impact of options
+      const hedgedRate = unhedgedRate + totalPayoff;
       
       const dataPoint: any = {
         spot: parseFloat(spot.toFixed(4)),
@@ -213,6 +193,7 @@ const HedgeCalculator = () => {
         'Initial Spot': parseFloat(params.spot.toFixed(4))
       };
       
+      // Add reference lines for the first data point only
       if (spots.length === 0) {
         options.forEach((option, index) => {
           if (option.actualStrike) {
@@ -273,6 +254,13 @@ const HedgeCalculator = () => {
       vol: newPair.vol / 100,
     }));
   };
+  
+  const handleSpreadsChange = (type: 'bid' | 'ask', value: number) => {
+    setParams(prev => ({
+      ...prev,
+      [type === 'bid' ? 'bidSpread' : 'askSpread']: value
+    }));
+  };
 
   useEffect(() => {
     if (!selectedStrategy) return;
@@ -284,10 +272,28 @@ const HedgeCalculator = () => {
       return;
     }
     
-    const calculatedResults = calculateStrategyResults(selectedStrategy, params);
+    // Apply spreads to standard strategies
+    const paramsWithSpreads = { 
+      ...params,
+      // Apply spreads to the calculation based on standard strategies
+      vol: params.vol * (1 + (params.bidSpread + params.askSpread) / 200) // Adjust volatility based on average of spreads
+    };
+    
+    const calculatedResults = calculateStrategyResults(selectedStrategy, paramsWithSpreads);
     
     if (calculatedResults) {
-      const payoffData = calculatePayoff(calculatedResults, selectedStrategy, params);
+      // Adjust premiums based on spreads
+      if (calculatedResults.callPrice) {
+        calculatedResults.callPrice *= (1 + params.bidSpread / 100);
+      }
+      if (calculatedResults.putPrice) {
+        calculatedResults.putPrice *= (1 + params.bidSpread / 100);
+      }
+      if (calculatedResults.totalPremium) {
+        calculatedResults.totalPremium *= (1 + params.bidSpread / 100);
+      }
+      
+      const payoffData = calculatePayoff(calculatedResults, selectedStrategy, paramsWithSpreads, includePremium);
       
       const minSpot = params.spot * 0.7;
       const maxSpot = params.spot * 1.3;
@@ -298,21 +304,35 @@ const HedgeCalculator = () => {
       let worstCase = Infinity;
       let bestCaseSpot = params.spot;
       let worstCaseSpot = params.spot;
+      let breakEvenPoints: number[] = [];
       
-      for (const point of payoffData) {
-        const hedgedRate = point['Hedged Rate'];
-        const unhedgedRate = point['Unhedged Rate'];
+      let previousPayoff = payoffData[0]['Hedged Rate'] - payoffData[0]['Unhedged Rate'];
+      
+      for (let i = 1; i < payoffData.length; i++) {
+        const spot = payoffData[i].spot;
+        const hedgedRate = payoffData[i]['Hedged Rate'];
+        const unhedgedRate = payoffData[i]['Unhedged Rate'];
         
-        const payoff = hedgedRate - unhedgedRate;
+        const relativePayoff = hedgedRate - unhedgedRate;
         
-        if (payoff > bestCase) {
-          bestCase = payoff;
-          bestCaseSpot = point.spot;
+        // Check for break-even points
+        if ((previousPayoff < 0 && relativePayoff >= 0) || (previousPayoff > 0 && relativePayoff <= 0)) {
+          // Linear interpolation to find the break-even spot
+          const prevSpot = payoffData[i-1].spot;
+          const breakEvenSpot = prevSpot + (spot - prevSpot) * (0 - previousPayoff) / (relativePayoff - previousPayoff);
+          breakEvenPoints.push(parseFloat(breakEvenSpot.toFixed(4)));
         }
         
-        if (payoff < worstCase) {
-          worstCase = payoff;
-          worstCaseSpot = point.spot;
+        previousPayoff = relativePayoff;
+        
+        if (relativePayoff > bestCase) {
+          bestCase = relativePayoff;
+          bestCaseSpot = spot;
+        }
+        
+        if (relativePayoff < worstCase) {
+          worstCase = relativePayoff;
+          worstCaseSpot = spot;
         }
       }
       
@@ -323,7 +343,8 @@ const HedgeCalculator = () => {
         worstCase: worstCase,
         bestCaseSpot: bestCaseSpot,
         worstCaseSpot: worstCaseSpot,
-        riskRewardRatio: riskRewardRatio
+        riskRewardRatio: riskRewardRatio,
+        breakEvenPoints: breakEvenPoints
       });
       
       setResults({
@@ -331,7 +352,7 @@ const HedgeCalculator = () => {
         payoffData,
       });
     }
-  }, [params, selectedStrategy, customOptions.length === 0]);
+  }, [params, selectedStrategy, includePremium, customOptions.length]);
 
   if (!results) return (
     <div className="h-screen flex items-center justify-center">
@@ -486,6 +507,59 @@ const HedgeCalculator = () => {
                     </option>
                   ))}
                 </select>
+              </label>
+            </div>
+          </div>
+
+          {/* Option toggles */}
+          <div className="mt-4 flex flex-wrap gap-4 border-t border-border pt-4">
+            <div>
+              <label className="flex items-center space-x-2 text-sm font-medium">
+                <input 
+                  type="checkbox" 
+                  checked={includePremium} 
+                  onChange={() => setIncludePremium(!includePremium)}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <span>Include Premium Costs in Payoff</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Bid/Ask Spreads */}
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Bid Spread (%) - For buying options
+                <input
+                  type="number"
+                  value={params.bidSpread}
+                  onChange={(e) => handleSpreadsChange('bid', parseFloat(e.target.value))}
+                  step="0.1"
+                  min="0"
+                  max="20"
+                  className="input-field mt-1 w-full"
+                />
+                <div className="text-xs text-muted-foreground mt-1">
+                  Higher bid spread increases the cost when buying options
+                </div>
+              </label>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Ask Spread (%) - For selling options
+                <input
+                  type="number"
+                  value={params.askSpread}
+                  onChange={(e) => handleSpreadsChange('ask', parseFloat(e.target.value))}
+                  step="0.1"
+                  min="0"
+                  max="20"
+                  className="input-field mt-1 w-full"
+                />
+                <div className="text-xs text-muted-foreground mt-1">
+                  Higher ask spread reduces premium received when selling options
+                </div>
               </label>
             </div>
           </div>
@@ -666,6 +740,7 @@ const HedgeCalculator = () => {
           <CustomStrategyBuilder 
             spot={params.spot} 
             onStrategyChange={handleCustomStrategyChange} 
+            includePremium={includePremium}
           />
         )}
 
@@ -682,6 +757,7 @@ const HedgeCalculator = () => {
           data={results.payoffData}
           selectedStrategy={selectedStrategy}
           spot={params.spot}
+          includePremium={includePremium}
           riskReward={riskReward}
         />
       </div>
