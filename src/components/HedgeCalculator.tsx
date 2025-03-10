@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { 
   calculateStrategyResults, 
@@ -28,10 +27,75 @@ interface CustomCurrencyPair {
   defaultStrike: number;
 }
 
+interface BaseStrategyResult {
+  totalPremium: number;
+  netPremium: number;
+}
+
+interface CollaredResult extends BaseStrategyResult {
+  putStrike: number;
+  callStrike: number;
+  putPrice: number;
+  callPrice: number;
+}
+
+interface ForwardResult extends BaseStrategyResult {
+  forwardRate: number;
+  details: string;
+}
+
+interface StrangleResult extends BaseStrategyResult {
+  putStrike: number;
+  callStrike: number;
+  putPrice: number;
+  callPrice: number;
+}
+
+interface BarrierResult extends BaseStrategyResult {
+  callStrike?: number;
+  putStrike?: number;
+  barrier: number;
+  callPrice?: number;
+  putPrice?: number;
+  details: string;
+}
+
+type StrategyResult = CollaredResult | ForwardResult | StrangleResult | BarrierResult | any;
+
+interface HedgeCalculatorState {
+  results: StrategyResult | null;
+  selectedPair: string;
+  selectedStrategy: string;
+  customOptions: OptionComponent[];
+  customGlobalParams: {
+    maturity: number;
+    r1: number;
+    r2: number;
+    notional: number;
+  };
+  includePremium: boolean;
+  params: {
+    spot: number;
+    strikeUpper: number;
+    strikeLower: number;
+    strikeMid: number;
+    barrierUpper: number;
+    barrierLower: number;
+    maturity: number;
+    r1: number;
+    r2: number;
+    vol: number;
+    premium: number;
+    notional: number;
+    bidSpread: number;
+    askSpread: number;
+  };
+}
+
 const HedgeCalculator = () => {
   const [selectedPair, setSelectedPair] = useState("EUR/USD");
   const [selectedStrategy, setSelectedStrategy] = useState("collar");
-  const [results, setResults] = useState<any>(null);
+  const [results, setResults] = useState<StrategyResult | null>(null);
   const [customOptions, setCustomOptions] = useState<OptionComponent[]>([]);
   const [customGlobalParams, setCustomGlobalParams] = useState({
     maturity: 1,
@@ -272,49 +336,22 @@ const HedgeCalculator = () => {
       return;
     }
     
-    // Apply spreads to standard strategies
     const paramsWithSpreads = { 
       ...params,
-      // Apply spreads to the calculation based on standard strategies
-      vol: params.vol * (1 + (params.bidSpread + params.askSpread) / 200) // Adjust volatility based on average of spreads
+      vol: params.vol * (1 + (params.bidSpread + params.askSpread) / 200)
     };
     
     const calculatedResults = calculateStrategyResults(selectedStrategy, paramsWithSpreads);
     
     if (calculatedResults) {
-      // Adjust premiums based on spreads
-      if (calculatedResults.callPrice) {
-        calculatedResults.callPrice *= (1 + params.bidSpread / 100);
-      }
-      if (calculatedResults.putPrice) {
-        calculatedResults.putPrice *= (1 + params.bidSpread / 100);
-      }
-      
-      // Calculate total premium if not already present
-      // Ensure calculatedResults has a totalPremium property for all strategy types
-      if (!('totalPremium' in calculatedResults)) {
-        let totalPremium = 0;
-        
-        if ('callPrice' in calculatedResults && 'putPrice' in calculatedResults) {
-          totalPremium = calculatedResults.callPrice + calculatedResults.putPrice;
-        } else if ('callPrice' in calculatedResults) {
-          totalPremium = calculatedResults.callPrice;
-        } else if ('putPrice' in calculatedResults) {
-          totalPremium = calculatedResults.putPrice;
-        } else if ('netPremium' in calculatedResults) {
-          totalPremium = calculatedResults.netPremium;
-        }
-        
-        // Assign the calculated totalPremium to the results object
-        calculatedResults.totalPremium = totalPremium;
-      }
-      
-      // Ensure netPremium exists if used later
-      if (!('netPremium' in calculatedResults)) {
-        calculatedResults.netPremium = calculatedResults.totalPremium || 0;
-      }
-      
-      const payoffData = calculatePayoff(calculatedResults, selectedStrategy, paramsWithSpreads, includePremium);
+      // Ensure results have all required properties
+      const results = {
+        ...calculatedResults,
+        totalPremium: calculatedResults.totalPremium,
+        netPremium: calculatedResults.netPremium
+      };
+
+      const payoffData = calculatePayoff(results, selectedStrategy, paramsWithSpreads, includePremium);
       
       const minSpot = params.spot * 0.7;
       const maxSpot = params.spot * 1.3;
@@ -369,7 +406,7 @@ const HedgeCalculator = () => {
       });
       
       setResults({
-        ...calculatedResults,
+        ...results,
         payoffData,
       });
     }

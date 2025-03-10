@@ -1,5 +1,41 @@
 import { erf } from 'mathjs';
 
+// Define base types for different strategy results
+interface BaseStrategyResult {
+  totalPremium: number;
+  netPremium: number;
+}
+
+interface CollaredResult extends BaseStrategyResult {
+  putStrike: number;
+  callStrike: number;
+  putPrice: number;
+  callPrice: number;
+}
+
+interface ForwardResult extends BaseStrategyResult {
+  forwardRate: number;
+  details: string;
+}
+
+interface StrangleResult extends BaseStrategyResult {
+  putStrike: number;
+  callStrike: number;
+  putPrice: number;
+  callPrice: number;
+}
+
+interface BarrierResult extends BaseStrategyResult {
+  callStrike?: number;
+  putStrike?: number;
+  barrier: number;
+  callPrice?: number;
+  putPrice?: number;
+  details: string;
+}
+
+type StrategyResult = CollaredResult | ForwardResult | StrangleResult | BarrierResult;
+
 // Black-Scholes option pricing for Forex
 export const calculateD1D2 = (S: number, K: number, T: number, r1: number, r2: number, sigma: number) => {
   const d1 = (Math.log(S/K) + (r1 - r2 + Math.pow(sigma, 2)/2) * T) / (sigma * Math.sqrt(T));
@@ -190,35 +226,11 @@ export const calculateStrategyResults = (
     r2: number;
     vol: number;
   }
-) => {
+): StrategyResult => {
   const { spot, strikeUpper, strikeLower, strikeMid, barrierUpper, barrierLower, maturity, r1, r2, vol } = params;
   
   switch(selectedStrategy) {
-    case 'collar':
-      const collarResult = findCollarEquivalentStrike({
-        spot, 
-        strikeUpper, 
-        strikeLower, 
-        maturity, 
-        r1, 
-        r2, 
-        vol
-      });
-      
-      // Ensure totalPremium is set
-      collarResult.totalPremium = collarResult.callPrice + collarResult.putPrice;
-      return collarResult;
-    
-    case 'forward':
-      const forwardRate = calculateForward(spot, maturity, r1, r2);
-      return {
-        forwardRate,
-        details: `Taux à terme fixé à ${forwardRate.toFixed(4)}`,
-        totalPremium: 0, // Forward contracts don't have premium
-        netPremium: 0
-      };
-    
-    case 'strangle':
+    case 'collar': {
       const putPrice = calculatePut(spot, strikeLower, maturity, r1, r2, vol);
       const callPrice = calculateCall(spot, strikeUpper, maturity, r1, r2, vol);
       return {
@@ -229,6 +241,28 @@ export const calculateStrategyResults = (
         totalPremium: putPrice + callPrice,
         netPremium: putPrice + callPrice
       };
+    }
+    
+    case 'forward':
+      return {
+        forwardRate: calculateForward(spot, maturity, r1, r2),
+        details: `Forward rate fixed at ${calculateForward(spot, maturity, r1, r2).toFixed(4)}`,
+        totalPremium: 0,
+        netPremium: 0
+      };
+    
+    case 'strangle': {
+      const putPrice = calculatePut(spot, strikeLower, maturity, r1, r2, vol);
+      const callPrice = calculateCall(spot, strikeUpper, maturity, r1, r2, vol);
+      return {
+        putStrike: strikeLower,
+        callStrike: strikeUpper,
+        putPrice,
+        callPrice,
+        totalPremium: putPrice + callPrice,
+        netPremium: putPrice + callPrice
+      };
+    }
     
     case 'straddle':
       const atMoneyPut = calculatePut(spot, spot, maturity, r1, r2, vol);
@@ -310,8 +344,7 @@ export const calculateStrategyResults = (
       return {
         callStrike: strikeUpper,
         putStrike: strikeLower,
-        barrierUpper: barrierUpper,
-        barrierLower: barrierLower,
+        barrier: barrierUpper,
         callPrice: comboCallKOPrice,
         putPrice: comboPutKIPrice,
         totalPremium: comboTotalPremium,
@@ -320,15 +353,22 @@ export const calculateStrategyResults = (
       };
     
     default:
-      return null;
+      return {
+        callStrike: spot,
+        putStrike: spot,
+        totalPremium: 0,
+        netPremium: 0,
+        callPrice: 0,
+        putPrice: 0
+      };
   }
 };
 
 // Calculate payoff data for chart
 export const calculatePayoff = (
-  results: any, 
-  selectedStrategy: string, 
-  params: any, 
+  results: StrategyResult,
+  selectedStrategy: string,
+  params: any,
   includePremium: boolean = true
 ) => {
   if (!results) return [];
@@ -455,8 +495,8 @@ export const calculatePayoff = (
       
       case 'callPutKI_KO':
         // Combination of Call KO and Put KI
-        const isComboCallKoActive = spot < results.barrierUpper;
-        const isComboPutKiActive = spot <= results.barrierLower;
+        const isComboCallKoActive = spot < results.barrier;
+        const isComboPutKiActive = spot <= results.barrier;
         
         if (isComboCallKoActive && spot > results.callStrike) {
           payoffAdjustment += results.callStrike - spot;
@@ -514,8 +554,8 @@ export const calculatePayoff = (
         case 'callPutKI_KO':
           dataPoint['Call Strike'] = parseFloat(results.callStrike.toFixed(4));
           dataPoint['Put Strike'] = parseFloat(results.putStrike.toFixed(4));
-          dataPoint['Upper Barrier'] = parseFloat(results.barrierUpper.toFixed(4));
-          dataPoint['Lower Barrier'] = parseFloat(results.barrierLower.toFixed(4));
+          dataPoint['Upper Barrier'] = parseFloat(results.barrier.toFixed(4));
+          dataPoint['Lower Barrier'] = parseFloat(results.barrier.toFixed(4));
           break;
       }
     }
