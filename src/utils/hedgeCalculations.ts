@@ -1,3 +1,4 @@
+
 import { erf } from 'mathjs';
 
 // Define base types for different strategy results
@@ -11,11 +12,13 @@ interface CollaredResult extends BaseStrategyResult {
   callStrike: number;
   putPrice: number;
   callPrice: number;
+  type: 'collar';
 }
 
 interface ForwardResult extends BaseStrategyResult {
   forwardRate: number;
   details: string;
+  type: 'forward';
 }
 
 interface StrangleResult extends BaseStrategyResult {
@@ -23,18 +26,57 @@ interface StrangleResult extends BaseStrategyResult {
   callStrike: number;
   putPrice: number;
   callPrice: number;
+  type: 'strangle';
 }
 
 interface BarrierResult extends BaseStrategyResult {
+  barrier: number;
+  details: string;
+  type: 'barrier';
   callStrike?: number;
   putStrike?: number;
-  barrier: number;
   callPrice?: number;
   putPrice?: number;
-  details: string;
 }
 
-type StrategyResult = CollaredResult | ForwardResult | StrangleResult | BarrierResult;
+interface StraddleResult extends BaseStrategyResult {
+  strike: number;
+  putPrice: number;
+  callPrice: number;
+  type: 'straddle';
+}
+
+interface PutResult extends BaseStrategyResult {
+  putStrike: number;
+  putPrice: number;
+  type: 'put';
+}
+
+interface CallResult extends BaseStrategyResult {
+  callStrike: number;
+  callPrice: number;
+  type: 'call';
+}
+
+interface SeagullResult extends BaseStrategyResult {
+  putBuyStrike: number;
+  callSellStrike: number;
+  putSellStrike: number;
+  putBuyPrice: number;
+  callSellPrice: number;
+  putSellPrice: number;
+  type: 'seagull';
+}
+
+type StrategyResult = 
+  | CollaredResult 
+  | ForwardResult 
+  | StrangleResult 
+  | BarrierResult 
+  | StraddleResult
+  | PutResult
+  | CallResult
+  | SeagullResult;
 
 // Black-Scholes option pricing for Forex
 export const calculateD1D2 = (S: number, K: number, T: number, r1: number, r2: number, sigma: number) => {
@@ -239,8 +281,9 @@ export const calculateStrategyResults = (
         putPrice,
         callPrice,
         totalPremium: putPrice + callPrice,
-        netPremium: putPrice + callPrice
-      };
+        netPremium: putPrice + callPrice,
+        type: 'collar'
+      } as CollaredResult;
     }
     
     case 'forward':
@@ -248,8 +291,9 @@ export const calculateStrategyResults = (
         forwardRate: calculateForward(spot, maturity, r1, r2),
         details: `Forward rate fixed at ${calculateForward(spot, maturity, r1, r2).toFixed(4)}`,
         totalPremium: 0,
-        netPremium: 0
-      };
+        netPremium: 0,
+        type: 'forward'
+      } as ForwardResult;
     
     case 'strangle': {
       const putPrice = calculatePut(spot, strikeLower, maturity, r1, r2, vol);
@@ -260,11 +304,12 @@ export const calculateStrategyResults = (
         putPrice,
         callPrice,
         totalPremium: putPrice + callPrice,
-        netPremium: putPrice + callPrice
-      };
+        netPremium: putPrice + callPrice,
+        type: 'strangle'
+      } as StrangleResult;
     }
     
-    case 'straddle':
+    case 'straddle': {
       const atMoneyPut = calculatePut(spot, spot, maturity, r1, r2, vol);
       const atMoneyCall = calculateCall(spot, spot, maturity, r1, r2, vol);
       return {
@@ -272,28 +317,34 @@ export const calculateStrategyResults = (
         putPrice: atMoneyPut,
         callPrice: atMoneyCall,
         totalPremium: atMoneyPut + atMoneyCall,
-        netPremium: atMoneyPut + atMoneyCall
-      };
+        netPremium: atMoneyPut + atMoneyCall,
+        type: 'straddle'
+      } as StraddleResult;
+    }
     
-    case 'put':
+    case 'put': {
       const simplePutPrice = calculatePut(spot, strikeLower, maturity, r1, r2, vol);
       return {
         putStrike: strikeLower,
         putPrice: simplePutPrice,
         totalPremium: simplePutPrice,
-        netPremium: simplePutPrice
-      };
+        netPremium: simplePutPrice,
+        type: 'put'
+      } as PutResult;
+    }
     
-    case 'call':
+    case 'call': {
       const simpleCallPrice = calculateCall(spot, strikeUpper, maturity, r1, r2, vol);
       return {
         callStrike: strikeUpper,
         callPrice: simpleCallPrice,
         totalPremium: simpleCallPrice,
-        netPremium: simpleCallPrice
-      };
+        netPremium: simpleCallPrice,
+        type: 'call'
+      } as CallResult;
+    }
     
-    case 'seagull':
+    case 'seagull': {
       // Buy a put, sell an OTM call, sell an OTM put
       const seagullPutBuy = calculatePut(spot, strikeMid, maturity, r1, r2, vol);
       const seagullCallSell = calculateCall(spot, strikeUpper, maturity, r1, r2, vol);
@@ -308,10 +359,12 @@ export const calculateStrategyResults = (
         callSellPrice: seagullCallSell,
         putSellPrice: seagullPutSell,
         netPremium,
-        totalPremium: netPremium
-      };
+        totalPremium: netPremium,
+        type: 'seagull'
+      } as SeagullResult;
+    }
     
-    case 'callKO':
+    case 'callKO': {
       // Call with Knock-Out barrier
       const callKOPrice = calculateBarrierOption('call', spot, strikeUpper, barrierUpper, maturity, r1, r2, vol, false);
       return {
@@ -320,10 +373,12 @@ export const calculateStrategyResults = (
         callPrice: callKOPrice,
         details: "Call KO désactivé si le taux dépasse la barrière",
         totalPremium: callKOPrice,
-        netPremium: callKOPrice
-      };
+        netPremium: callKOPrice,
+        type: 'barrier'
+      } as BarrierResult;
+    }
     
-    case 'putKI':
+    case 'putKI': {
       // Put with Knock-In barrier
       const putKIPrice = calculateBarrierOption('put', spot, strikeLower, barrierUpper, maturity, r1, r2, vol, true);
       return {
@@ -332,10 +387,12 @@ export const calculateStrategyResults = (
         putPrice: putKIPrice,
         details: "Put KI activé si le taux dépasse la barrière",
         totalPremium: putKIPrice,
-        netPremium: putKIPrice
-      };
+        netPremium: putKIPrice,
+        type: 'barrier'
+      } as BarrierResult;
+    }
     
-    case 'callPutKI_KO':
+    case 'callPutKI_KO': {
       // Combination of Call KO and Put KI
       const comboCallKOPrice = calculateBarrierOption('call', spot, strikeUpper, barrierUpper, maturity, r1, r2, vol, false);
       const comboPutKIPrice = calculateBarrierOption('put', spot, strikeLower, barrierLower, maturity, r1, r2, vol, true);
@@ -344,13 +401,15 @@ export const calculateStrategyResults = (
       return {
         callStrike: strikeUpper,
         putStrike: strikeLower,
-        barrier: barrierUpper,
+        barrier: barrierUpper, // Using upper barrier as the primary barrier
         callPrice: comboCallKOPrice,
         putPrice: comboPutKIPrice,
         totalPremium: comboTotalPremium,
         netPremium: comboTotalPremium,
-        details: "Stratégie pour profiter d'une baisse jusqu'à la barrière"
-      };
+        details: "Stratégie pour profiter d'une baisse jusqu'à la barrière",
+        type: 'barrier'
+      } as BarrierResult;
+    }
     
     default:
       return {
@@ -359,19 +418,20 @@ export const calculateStrategyResults = (
         totalPremium: 0,
         netPremium: 0,
         callPrice: 0,
-        putPrice: 0
-      };
+        putPrice: 0,
+        type: 'collar'
+      } as CollaredResult;
   }
 };
 
 // Calculate payoff data for chart
 export const calculatePayoff = (
-  results: StrategyResult,
+  result: StrategyResult,
   selectedStrategy: string,
   params: any,
   includePremium: boolean = true
 ) => {
-  if (!results) return [];
+  if (!result) return [];
   
   const spots = [];
   const minSpot = params.spot * 0.7;
@@ -387,125 +447,145 @@ export const calculatePayoff = (
 
     switch(selectedStrategy) {
       case 'collar':
-        // Long put + Short call
-        if (spot < results.putStrike) {
-          payoffAdjustment = results.putStrike - spot;
-        } else if (spot > results.callStrike) {
-          payoffAdjustment = results.callStrike - spot;
-        }
-        if (includePremium && results.totalPremium) {
-          payoffAdjustment -= results.totalPremium;
+        if (result.type === 'collar') {
+          // Long put + Short call
+          if (spot < result.putStrike) {
+            payoffAdjustment = result.putStrike - spot;
+          } else if (spot > result.callStrike) {
+            payoffAdjustment = result.callStrike - spot;
+          }
+          if (includePremium && result.totalPremium) {
+            payoffAdjustment -= result.totalPremium;
+          }
         }
         hedgedPayoff = spot + payoffAdjustment;
         break;
       
       case 'forward':
-        hedgedPayoff = results.forwardRate;
+        if (result.type === 'forward') {
+          hedgedPayoff = result.forwardRate;
+        }
         break;
       
       case 'strangle':
-        // Long put + Long call
-        if (spot < results.putStrike) {
-          payoffAdjustment = results.putStrike - spot;
-        } else if (spot > results.callStrike) {
-          payoffAdjustment = spot - results.callStrike;
-        }
-        if (includePremium && results.totalPremium) {
-          payoffAdjustment -= results.totalPremium;
+        if (result.type === 'strangle') {
+          // Long put + Long call
+          if (spot < result.putStrike) {
+            payoffAdjustment = result.putStrike - spot;
+          } else if (spot > result.callStrike) {
+            payoffAdjustment = spot - result.callStrike;
+          }
+          if (includePremium && result.totalPremium) {
+            payoffAdjustment -= result.totalPremium;
+          }
         }
         hedgedPayoff = spot + payoffAdjustment;
         break;
       
       case 'straddle':
-        // Long put + Long call at same strike
-        if (spot < results.strike) {
-          payoffAdjustment = results.strike - spot;
-        } else if (spot > results.strike) {
-          payoffAdjustment = spot - results.strike;
-        }
-        if (includePremium && results.totalPremium) {
-          payoffAdjustment -= results.totalPremium;
+        if (result.type === 'straddle') {
+          // Long put + Long call at same strike
+          if (spot < result.strike) {
+            payoffAdjustment = result.strike - spot;
+          } else if (spot > result.strike) {
+            payoffAdjustment = spot - result.strike;
+          }
+          if (includePremium && result.totalPremium) {
+            payoffAdjustment -= result.totalPremium;
+          }
         }
         hedgedPayoff = spot + payoffAdjustment;
         break;
       
       case 'put':
-        // Long put only
-        if (spot < results.putStrike) {
-          payoffAdjustment = results.putStrike - spot;
-        }
-        if (includePremium && results.putPrice) {
-          payoffAdjustment -= results.putPrice;
+        if (result.type === 'put') {
+          // Long put only
+          if (spot < result.putStrike) {
+            payoffAdjustment = result.putStrike - spot;
+          }
+          if (includePremium && result.putPrice) {
+            payoffAdjustment -= result.putPrice;
+          }
         }
         hedgedPayoff = spot + payoffAdjustment;
         break;
       
       case 'call':
-        // Long call only
-        if (spot > results.callStrike) {
-          payoffAdjustment = results.callStrike - spot;
-        }
-        if (includePremium && results.callPrice) {
-          payoffAdjustment -= results.callPrice;
+        if (result.type === 'call') {
+          // Long call only
+          if (spot > result.callStrike) {
+            payoffAdjustment = result.callStrike - spot;
+          }
+          if (includePremium && result.callPrice) {
+            payoffAdjustment -= result.callPrice;
+          }
         }
         hedgedPayoff = spot + payoffAdjustment;
         break;
       
       case 'seagull':
-        // Long put (mid) + Short call (high) + Short put (low)
-        if (spot < results.putSellStrike) {
-          // Below low strike - lose protection from short put
-          payoffAdjustment = -(spot - results.putSellStrike);
-        } else if (spot < results.putBuyStrike) {
-          // Between low and mid - full protection from long put
-          payoffAdjustment = results.putBuyStrike - spot;
-        } else if (spot > results.callSellStrike) {
-          // Above high strike - capped from short call
-          payoffAdjustment = results.callSellStrike - spot;
-        }
-        if (includePremium && results.netPremium) {
-          payoffAdjustment -= results.netPremium;
+        if (result.type === 'seagull') {
+          // Long put (mid) + Short call (high) + Short put (low)
+          if (spot < result.putSellStrike) {
+            // Below low strike - lose protection from short put
+            payoffAdjustment = -(spot - result.putSellStrike);
+          } else if (spot < result.putBuyStrike) {
+            // Between low and mid - full protection from long put
+            payoffAdjustment = result.putBuyStrike - spot;
+          } else if (spot > result.callSellStrike) {
+            // Above high strike - capped from short call
+            payoffAdjustment = result.callSellStrike - spot;
+          }
+          if (includePremium && result.netPremium) {
+            payoffAdjustment -= result.netPremium;
+          }
         }
         hedgedPayoff = spot + payoffAdjustment;
         break;
       
       case 'callKO':
-        // Call with Knock-Out barrier
-        const isCallKoActive = spot < results.barrier;
-        if (isCallKoActive && spot > results.callStrike) {
-          payoffAdjustment = results.callStrike - spot;
-        }
-        if (includePremium && results.callPrice) {
-          payoffAdjustment -= results.callPrice;
+        if (result.type === 'barrier' && result.callStrike && result.callPrice) {
+          // Call with Knock-Out barrier
+          const isCallKoActive = spot < result.barrier;
+          if (isCallKoActive && spot > result.callStrike) {
+            payoffAdjustment = result.callStrike - spot;
+          }
+          if (includePremium && result.callPrice) {
+            payoffAdjustment -= result.callPrice;
+          }
         }
         hedgedPayoff = spot + payoffAdjustment;
         break;
       
       case 'putKI':
-        // Put with Knock-In barrier
-        const isPutKiActive = spot <= results.barrier;
-        if (isPutKiActive && spot < results.putStrike) {
-          payoffAdjustment = results.putStrike - spot;
-        }
-        if (includePremium && results.putPrice) {
-          payoffAdjustment -= results.putPrice;
+        if (result.type === 'barrier' && result.putStrike && result.putPrice) {
+          // Put with Knock-In barrier
+          const isPutKiActive = spot <= result.barrier;
+          if (isPutKiActive && spot < result.putStrike) {
+            payoffAdjustment = result.putStrike - spot;
+          }
+          if (includePremium && result.putPrice) {
+            payoffAdjustment -= result.putPrice;
+          }
         }
         hedgedPayoff = spot + payoffAdjustment;
         break;
       
       case 'callPutKI_KO':
-        // Combination of Call KO and Put KI
-        const isComboCallKoActive = spot < results.barrier;
-        const isComboPutKiActive = spot <= results.barrier;
-        
-        if (isComboCallKoActive && spot > results.callStrike) {
-          payoffAdjustment += results.callStrike - spot;
-        }
-        if (isComboPutKiActive && spot < results.putStrike) {
-          payoffAdjustment += results.putStrike - spot;
-        }
-        if (includePremium && results.totalPremium) {
-          payoffAdjustment -= results.totalPremium;
+        if (result.type === 'barrier' && result.callStrike && result.putStrike) {
+          // Combination of Call KO and Put KI
+          const isComboCallKoActive = spot < result.barrier;
+          const isComboPutKiActive = spot <= result.barrier;
+          
+          if (isComboCallKoActive && spot > result.callStrike) {
+            payoffAdjustment += result.callStrike - spot;
+          }
+          if (isComboPutKiActive && spot < result.putStrike) {
+            payoffAdjustment += result.putStrike - spot;
+          }
+          if (includePremium && result.totalPremium) {
+            payoffAdjustment -= result.totalPremium;
+          }
         }
         hedgedPayoff = spot + payoffAdjustment;
         break;
@@ -525,37 +605,58 @@ export const calculatePayoff = (
     if (spots.length === 0) {
       switch(selectedStrategy) {
         case 'collar':
+          if (result.type === 'collar') {
+            dataPoint['Put Strike'] = parseFloat(result.putStrike.toFixed(4));
+            dataPoint['Call Strike'] = parseFloat(result.callStrike.toFixed(4));
+          }
+          break;
         case 'strangle':
-          dataPoint['Put Strike'] = parseFloat(results.putStrike.toFixed(4));
-          dataPoint['Call Strike'] = parseFloat(results.callStrike.toFixed(4));
+          if (result.type === 'strangle') {
+            dataPoint['Put Strike'] = parseFloat(result.putStrike.toFixed(4));
+            dataPoint['Call Strike'] = parseFloat(result.callStrike.toFixed(4));
+          }
           break;
         case 'straddle':
-          dataPoint['Strike'] = parseFloat(results.strike.toFixed(4));
+          if (result.type === 'straddle') {
+            dataPoint['Strike'] = parseFloat(result.strike.toFixed(4));
+          }
           break;
         case 'put':
-          dataPoint['Put Strike'] = parseFloat(results.putStrike.toFixed(4));
+          if (result.type === 'put') {
+            dataPoint['Put Strike'] = parseFloat(result.putStrike.toFixed(4));
+          }
           break;
         case 'call':
-          dataPoint['Call Strike'] = parseFloat(results.callStrike.toFixed(4));
+          if (result.type === 'call') {
+            dataPoint['Call Strike'] = parseFloat(result.callStrike.toFixed(4));
+          }
           break;
         case 'seagull':
-          dataPoint['Put Sell Strike'] = parseFloat(results.putSellStrike.toFixed(4));
-          dataPoint['Put Buy Strike'] = parseFloat(results.putBuyStrike.toFixed(4));
-          dataPoint['Call Sell Strike'] = parseFloat(results.callSellStrike.toFixed(4));
+          if (result.type === 'seagull') {
+            dataPoint['Put Sell Strike'] = parseFloat(result.putSellStrike.toFixed(4));
+            dataPoint['Put Buy Strike'] = parseFloat(result.putBuyStrike.toFixed(4));
+            dataPoint['Call Sell Strike'] = parseFloat(result.callSellStrike.toFixed(4));
+          }
           break;
         case 'callKO':
-          dataPoint['Call Strike'] = parseFloat(results.callStrike.toFixed(4));
-          dataPoint['KO Barrier'] = parseFloat(results.barrier.toFixed(4));
+          if (result.type === 'barrier' && result.callStrike) {
+            dataPoint['Call Strike'] = parseFloat(result.callStrike.toFixed(4));
+            dataPoint['KO Barrier'] = parseFloat(result.barrier.toFixed(4));
+          }
           break;
         case 'putKI':
-          dataPoint['Put Strike'] = parseFloat(results.putStrike.toFixed(4));
-          dataPoint['KI Barrier'] = parseFloat(results.barrier.toFixed(4));
+          if (result.type === 'barrier' && result.putStrike) {
+            dataPoint['Put Strike'] = parseFloat(result.putStrike.toFixed(4));
+            dataPoint['KI Barrier'] = parseFloat(result.barrier.toFixed(4));
+          }
           break;
         case 'callPutKI_KO':
-          dataPoint['Call Strike'] = parseFloat(results.callStrike.toFixed(4));
-          dataPoint['Put Strike'] = parseFloat(results.putStrike.toFixed(4));
-          dataPoint['Upper Barrier'] = parseFloat(results.barrier.toFixed(4));
-          dataPoint['Lower Barrier'] = parseFloat(results.barrier.toFixed(4));
+          if (result.type === 'barrier' && result.callStrike && result.putStrike) {
+            dataPoint['Call Strike'] = parseFloat(result.callStrike.toFixed(4));
+            dataPoint['Put Strike'] = parseFloat(result.putStrike.toFixed(4));
+            dataPoint['Upper Barrier'] = parseFloat(result.barrier.toFixed(4));
+            dataPoint['Lower Barrier'] = parseFloat(result.barrier.toFixed(4));
+          }
           break;
       }
     }
