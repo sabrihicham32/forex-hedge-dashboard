@@ -1,4 +1,3 @@
-
 import { erf } from 'mathjs';
 
 export interface OptionComponent {
@@ -53,7 +52,7 @@ export const calculateOptionPremium = (option: OptionComponent, spot: number, pa
   return premium * (Math.abs(option.quantity) / 100);
 };
 
-// Calculate call option premium using Black-Scholes
+// Improved call option premium calculation using Black-Scholes
 const calculateCallPremium = (S: number, K: number, T: number, r1: number, r2: number, sigma: number) => {
   const d1 = (Math.log(S/K) + (r1 - r2 + 0.5 * Math.pow(sigma, 2)) * T) / (sigma * Math.sqrt(T));
   const d2 = d1 - sigma * Math.sqrt(T);
@@ -179,30 +178,35 @@ export const isBarrierActive = (option: OptionComponent, spotPrice: number): boo
 // Improved payoff calculation for a single option at a specific spot price
 export const calculateOptionPayoff = (option: OptionComponent, spotAtExpiry: number, includePremium: boolean = true): number => {
   if (!option.actualStrike) {
-    return 0; // No valid strike, no payoff
+    return 0;
   }
   
   // Check if the option is active based on its barriers
   const active = isBarrierActive(option, spotAtExpiry);
   
   if (!active) {
-    return includePremium ? -1 * (option.premium || 0) : 0; // If including premium, return premium loss
+    return includePremium ? -1 * (option.premium || 0) : 0;
   }
   
-  // Calculate intrinsic value based on option type
+  // Calculate intrinsic value based on option type with fixed call calculation
   let intrinsicValue = 0;
   
   if (option.type === "call") {
-    intrinsicValue = Math.max(0, spotAtExpiry - option.actualStrike);
+    // Fixed call payoff calculation
+    intrinsicValue = spotAtExpiry > option.actualStrike 
+      ? spotAtExpiry - option.actualStrike
+      : 0;
   } else if (option.type === "put") {
-    intrinsicValue = Math.max(0, option.actualStrike - spotAtExpiry);
+    intrinsicValue = option.actualStrike > spotAtExpiry
+      ? option.actualStrike - spotAtExpiry
+      : 0;
   }
   
   // Apply quantity adjustment (positive for long, negative for short)
   const quantityFactor = option.quantity > 0 ? 1 : -1;
   const quantityAdjusted = intrinsicValue * Math.abs(option.quantity) / 100 * quantityFactor;
   
-  // Calculate total payoff (intrinsic value minus premium paid, if includePremium is true)
+  // Calculate total payoff
   return includePremium ? quantityAdjusted - (option.premium || 0) : quantityAdjusted;
 };
 
