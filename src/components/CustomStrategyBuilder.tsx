@@ -93,8 +93,12 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({
             : option.lowerBarrier)
         : undefined;
       
-      // Calculate premium based on option type
-      const premium = calculateOptionPremium(option, spot, params);
+      // Utilisation des nouvelles fonctions de calcul
+      const premium = calculateCustomOptionPremium(
+        { ...option, actualStrike, actualUpperBarrier, actualLowerBarrier },
+        spot, 
+        params
+      );
       
       return { 
         ...option, 
@@ -104,6 +108,9 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({
         actualLowerBarrier
       };
     });
+    
+    // Génération des données de payoff avec les nouvelles fonctions
+    const payoffData = generateCustomPayoffData(optionsWithPremiums, spot, includePremium);
     
     onStrategyChange(optionsWithPremiums, params);
   };
@@ -222,6 +229,4 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({
   );
 };
 
-// Re-export the OptionComponent type so it can be imported from this file
-export type { OptionComponent };
 export default CustomStrategyBuilder;
