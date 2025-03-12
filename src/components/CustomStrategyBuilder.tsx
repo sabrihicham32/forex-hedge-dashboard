@@ -3,7 +3,10 @@ import React, { useState, useEffect } from "react";
 import CustomStrategyOption, { OptionComponent } from "./CustomStrategyOption";
 import { Plus } from "lucide-react";
 import { GlassContainer } from "@/components/ui/layout";
-import { calculateOptionPremium } from "@/utils/barrierOptionCalculations";
+import { 
+  calculateOptionPremium,
+  calculateCustomStrategyPayoff
+} from "@/utils/barrierOptionCalculations";
 
 interface CustomStrategyBuilderProps {
   spot: number;
@@ -93,8 +96,8 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({
             : option.lowerBarrier)
         : undefined;
       
-      // Utilisation des nouvelles fonctions de calcul
-      const premium = calculateCustomOptionPremium(
+      // Use the existing calculation function
+      const premium = calculateOptionPremium(
         { ...option, actualStrike, actualUpperBarrier, actualLowerBarrier },
         spot, 
         params
@@ -109,8 +112,48 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({
       };
     });
     
-    // Génération des données de payoff avec les nouvelles fonctions
-    const payoffData = generateCustomPayoffData(optionsWithPremiums, spot, includePremium);
+    // Generate payoff data using the existing calculation functions
+    // We'll use the built-in calculateCustomStrategyPayoff function
+    const minSpot = spot * 0.7;
+    const maxSpot = spot * 1.3;
+    const numSteps = 100;
+    const step = (maxSpot - minSpot) / numSteps;
+    
+    const payoffData = [];
+    
+    for (let currentSpot = minSpot; currentSpot <= maxSpot; currentSpot += step) {
+      const totalPayoff = calculateCustomStrategyPayoff(
+        optionsWithPremiums, 
+        currentSpot, 
+        spot, 
+        params,
+        includePremium
+      );
+      
+      const dataPoint = {
+        spot: parseFloat(currentSpot.toFixed(4)),
+        'Unhedged Rate': parseFloat(currentSpot.toFixed(4)),
+        'Initial Spot': parseFloat(spot.toFixed(4)),
+        'Hedged Rate': parseFloat((currentSpot + totalPayoff).toFixed(4))
+      };
+      
+      // Add reference lines for strike and barriers for the first data point only
+      if (payoffData.length === 0) {
+        optionsWithPremiums.forEach((option, index) => {
+          if (option.actualStrike) {
+            dataPoint[`Option ${index + 1} Strike`] = parseFloat(option.actualStrike.toFixed(4));
+          }
+          if (option.actualUpperBarrier) {
+            dataPoint[`Option ${index + 1} Upper Barrier`] = parseFloat(option.actualUpperBarrier.toFixed(4));
+          }
+          if (option.actualLowerBarrier) {
+            dataPoint[`Option ${index + 1} Lower Barrier`] = parseFloat(option.actualLowerBarrier.toFixed(4));
+          }
+        });
+      }
+      
+      payoffData.push(dataPoint);
+    }
     
     onStrategyChange(optionsWithPremiums, params);
   };
