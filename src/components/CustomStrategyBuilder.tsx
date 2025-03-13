@@ -112,8 +112,7 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({
       };
     });
     
-    // Generate payoff data using the existing calculation functions
-    // We'll use the built-in calculateCustomStrategyPayoff function
+    // Generate payoff data
     const minSpot = spot * 0.7;
     const maxSpot = spot * 1.3;
     const numSteps = 100;
@@ -122,7 +121,8 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({
     const payoffData = [];
     
     for (let currentSpot = minSpot; currentSpot <= maxSpot; currentSpot += step) {
-      const totalPayoff = calculateCustomStrategyPayoff(
+      // Calculate the PnL from the strategy
+      const pnl = calculateCustomStrategyPayoff(
         optionsWithPremiums, 
         currentSpot, 
         spot, 
@@ -130,11 +130,14 @@ const CustomStrategyBuilder: React.FC<CustomStrategyBuilderProps> = ({
         includePremium
       );
       
+      // Add PnL to the unhedged rate (which is the spot itself) to get the hedged rate
+      const hedgedRate = currentSpot + pnl;
+      
       const dataPoint = {
         spot: parseFloat(currentSpot.toFixed(4)),
         'Unhedged Rate': parseFloat(currentSpot.toFixed(4)),
         'Initial Spot': parseFloat(spot.toFixed(4)),
-        'Hedged Rate': parseFloat((currentSpot + totalPayoff).toFixed(4))
+        'Hedged Rate': parseFloat(hedgedRate.toFixed(4))
       };
       
       // Add reference lines for strike and barriers for the first data point only

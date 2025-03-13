@@ -218,13 +218,16 @@ export const calculateCustomStrategyPayoff = (
   params: any, 
   includePremium: boolean = true
 ): number => {
-  let totalPayoff = 0;
+  // Calculate the PnL in absolute terms (not the rate directly)
+  let totalPnL = 0;
   
   for (const option of options) {
-    totalPayoff += calculateOptionPayoff(option, spotAtExpiry, includePremium);
+    totalPnL += calculateOptionPayoff(option, spotAtExpiry, includePremium);
   }
   
-  return totalPayoff;
+  // Return the PnL as this will be added to the unhedged rate (spot) in the UI components
+  // to get the effective hedged rate (spotAtExpiry + PnL)
+  return totalPnL;
 };
 
 // Improved risk-reward metrics calculation for a strategy
